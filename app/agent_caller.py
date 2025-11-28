@@ -105,16 +105,14 @@ def simulate_agent_output(agent_name: str, text: str) -> Dict[str, Any]:
             "confidence": 0.88,
             "details": "Onboarding next steps",
         }
-    if agent_name == "knowledge_base_builder_agent":
+    if agent_name == "KnowledgeBaseBuilderAgent":
         return {
-            "result": "Wiki updated successfully using overwrite mode",
+            "result": "Task created successfully",
             "confidence": 0.95,
             "details": {
-                "status": "success",
-                "message": "Wiki updated successfully using overwrite mode",
-                "wiki_size": 1234,
-                "update_mode": "overwrite",
-                "agent_id": "knowledge_base_builder_agent",
+                "task_id": "AUTO-GEN-001",
+                "task_name": "Parsed from input",
+                "task_status": "todo",
             },
         }
     if agent_name == "task_dependency_agent":
