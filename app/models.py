@@ -60,7 +60,7 @@ class ErrorModel(BaseModel):
 class OutputModel(BaseModel):
     result: Any
     confidence: Optional[float] = None
-    details: Optional[str] = None
+    details: Optional[Any] = None  # Changed from str to Any to accept dict
 
 
 class AgentResponse(BaseModel):

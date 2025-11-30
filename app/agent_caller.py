@@ -6,6 +6,7 @@ alignment with production behavior.
 """
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from typing import Any, Dict
@@ -73,6 +74,9 @@ async def call_agent(
     # Only live HTTP calls are supported; no simulation fallback.
     if agent_meta.type == "http" and agent_meta.endpoint and httpx is not None:
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
             async with httpx.AsyncClient(timeout=agent_meta.timeout_ms / 1000) as client:
                 # Special handling for conflict_resolver_agent which expects { "message": "..." }
                 if agent_meta.name == "conflict_resolver_agent":

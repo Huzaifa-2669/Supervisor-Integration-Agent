@@ -4,6 +4,7 @@ capabilities and (b) look up connection details when calling a worker.
 """
 from __future__ import annotations
 
+import os
 from typing import List
 
 from .models import AgentMetadata
@@ -11,15 +12,9 @@ from .models import AgentMetadata
 
 def load_registry() -> List[AgentMetadata]:
     """Return the known worker agents. Replace endpoints/commands with real ones."""
+    
     return [
-        AgentMetadata(
-            name="progress_accountability_agent",
-            description="Tracks goals, tasks, and progress to provide accountability insights.",
-            intents=["progress.track"],
-            type="http",
-            endpoint="https://example.com/progress/handle",
-            healthcheck="https://example.com/progress/health",
-        ),
+        
         AgentMetadata(
             name="email_priority_agent",
             description="Classifies email-like text into priority levels (high/medium/low) and returns explanations.",
@@ -82,12 +77,109 @@ def load_registry() -> List[AgentMetadata]:
             timeout_ms=30000,
         ),
         AgentMetadata(
+            name="progress_accountability_agent",
+            description="Tracks goals, progress, reflections, reminders, productivity reports, insights, and accountability metrics.",
+            intents=[
+                "progress.track",              # /agent/message or json payload
+                "goal.create",                 # POST /goals
+                "goal.update",                 # PATCH /goals/<id>/progress
+                "goal.list",                   # GET /goals
+                "reflection.add",              # POST /reflections
+                "reminders.get",               # GET /reminders
+                "productivity.report",         # GET /report
+                "productivity.analyze",        # GET /analysis
+                "productivity.accountability", # GET /accountability
+                "productivity.insights",       # GET /insights
+                "progress.message"             # Free-form message logging
+            ],
+            type="http",
+            endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
+            healthcheck="https://spm-agent-api-production.up.railway.app/health",
+            timeout_ms=30000,
+        ),
+
+
+        AgentMetadata(
             name="deadline_guardian_agent",
-            description="Monitors deadlines, detects risks, and alerts when deadlines are at risk.",
+            description="AI-powered deadline monitoring with dependency analysis. Identifies cascading risks, bottlenecks, and blocked tasks using Google Gemini Flash 2.0. Provides strategic recommendations for clearing bottlenecks and managing overdue tasks.",
             intents=["deadline.monitor"],
             type="http",
-            endpoint="https://example.com/deadline/handle",
-            healthcheck="https://example.com/deadline/health",
+            endpoint="https://deadlinegaurdianagent-production.up.railway.app/handle",
+            healthcheck="https://deadlinegaurdianagent-production.up.railway.app/health",
+            timeout_ms=30000,
+        ),
+        AgentMetadata(
+            name="focus_enforcer_agent",
+            description="Monitors user focus and productivity by analyzing window activity. Uses LLM to calculate focus scores based on productive vs distraction keywords, determines if user is FOCUSED or DISTRACTED, and generates supervisor commands for interventions (notifications or strict popups). Requires activity history data with window titles.",
+            intents=[
+                "focus.analyze",
+                "focus.start_monitoring", 
+                "focus.stop_monitoring",
+                "focus.check_status",
+                "productivity.assess"
+            ],
+            type="http",
+            endpoint="http://localhost:8001/handle",  # Local endpoint for Focus Enforcer service
+            healthcheck="http://localhost:8001/health",
+            timeout_ms=60000,  # 60 seconds timeout for LLM analysis
+        ),
+        AgentMetadata(
+            name="budget_tracker_agent",
+            description="A budget tracking and analysis agent that monitors spending, predicts overspending risks, detects anomalies in expense patterns, and provides recommendations for budget management. Supports natural language queries and multi-project budget tracking.",
+            intents=[
+                "budget.check",
+                "budget.update",
+                "budget.predict",
+                "budget.recommend",
+                "budget.analyze",
+                "budget.report",
+                "budget.question",
+                "budget.list",
+            ],
+            type="http",
+            endpoint="https://budget-tracker-agent.onrender.com/api/query",
+            healthcheck="https://budget-tracker-agent.onrender.com/api/health",
+            timeout_ms=30000,  # Increased to 30s for Render.com cold starts (docs say 5000ms but that's too short for cold starts)
+        ),
+        AgentMetadata(
+            name="hiring_screener_agent",
+            description=(
+                "AI-powered hiring assistant that parses resumes (PDF/DOCX), matches candidate skills against job requirements, "
+                "scores candidates using multi-factor analysis, ranks multiple applicants with statistical metrics, "
+                "detects potential bias in hiring decisions, and generates comprehensive hiring reports. "
+                "Supports semantic skill matching, experience evaluation, and batch candidate processing."
+            ),
+            intents=[
+                "hiring.parse_resume",
+                "hiring.match_skills",
+                "hiring.score_candidate",
+                "hiring.rank_candidates",
+                "hiring.check_bias",
+                "hiring.generate_report",
+                "resume.parse",
+                "candidate.evaluate",
+                "candidate.score",
+                "candidate.rank",
+            ],
+            type="http",
+            endpoint=f"https://hiring-screener-agent-sre.onrender.com/supervisor/task",
+            healthcheck="https://hiring-screener-agent-sre.onrender.com/health",
+            timeout_ms=30000,
+        ),
+        # Document Reviewer Agent.
+        AgentMetadata(
+            name="document_reviewer_agent",
+            description="Reviews documents (.docx or text) for spelling, grammar, compliance issues, and generates structured feedback.",
+            intents=[
+                "document.review",
+                "document.review.spelling",
+                "document.review.grammar",
+                "document.review.compliance"
+            ],
+            type="http",
+            endpoint="https://document-reviewer-agent.onrender.com/handle",
+            healthcheck="https://document-reviewer-agent.onrender.com/health",
+            timeout_ms=60000,
         ),
         AgentMetadata(
             name="conflict_resolver_agent",

@@ -1,0 +1,19 @@
+# Supervisor Agent System - Requirements
+# ======================================
+
+# Core Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# HTTP Client (for agent communication)
+httpx>=0.25.0
+
+# LLM Integration
+openai>=1.0.0           # For OpenRouter/OpenAI API calls (Supervisor planner)
+cohere>=5.0.0           # For Focus Enforcer Agent LLM analysis
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+pygetwindow>=0.0.9      # Required for Focus Enforcer window activity monitoring

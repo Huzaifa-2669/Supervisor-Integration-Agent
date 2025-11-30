@@ -36,9 +36,9 @@ STYLES = """
             min-height: 100vh;
           }
           .shell {
-            max-width: 1100px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 48px 12px 100px;
+            padding: 56px 8px 110px;
             position: relative;
           }
           /* Ambient sparkles */
@@ -74,30 +74,30 @@ STYLES = """
             background: rgba(11,18,32,0.9);
             border: 1px solid var(--border);
             border-radius: 18px;
-            padding: 20px;
+            padding: 22px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.35);
           }
           .chat {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
           }
           .chat-feed {
             background: var(--panel);
             border: 1px solid var(--border);
             border-radius: 14px;
-            padding: 14px;
-            min-height: 320px;
-            max-height: 520px;
+            padding: 20px;
+            min-height: 75vh;
+            max-height: 85vh;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
           }
           .msg {
-            max-width: 80%;
-            padding: 12px 14px;
-            border-radius: 14px;
+            max-width: 82%;
+            padding: 14px 16px;
+            border-radius: 16px;
             background: var(--card);
             border: 1px solid var(--border);
             box-shadow: 0 10px 30px rgba(0,0,0,0.25);
@@ -113,24 +113,25 @@ STYLES = """
           }
           .input-bar {
             display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
-            align-items: center;
+            grid-template-columns: 1fr 200px;
+            gap: 14px;
+            align-items: start;
             background: var(--panel);
             border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 10px;
+            border-radius: 16px;
+            padding: 12px 14px;
           }
           textarea {
             width: 100%;
-            min-height: 140px;
+            min-height: 150px;
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 14px;
             color: var(--text);
-            padding: 14px;
+            padding: 16px;
             resize: vertical;
             font-size: 15px;
+            line-height: 1.6;
           }
           .controls {
             display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap;
@@ -153,7 +154,7 @@ STYLES = """
           .file-input:hover { border-color: var(--accent); transform: translateY(-1px); }
           .file-input::-webkit-file-upload-button { background: linear-gradient(120deg, #22d3ee, #22c55e); border: none; border-radius: 999px; padding: 8px 12px; color: #0b1220; font-weight: 700; cursor: pointer; }
           .file-meta { color: var(--muted); font-size: 13px; }
-          .file-trigger { background: var(--panel); border: 1px solid var(--border); padding: 10px 12px; border-radius: 12px; color: var(--text); cursor: pointer; transition: border 120ms ease, transform 120ms ease; text-align: center; }
+          .file-trigger { background: var(--panel); border: 1px solid var(--border); padding: 12px 14px; border-radius: 12px; color: var(--text); cursor: pointer; transition: border 120ms ease, transform 120ms ease; text-align: center; }
           .file-trigger:hover { border-color: var(--accent); transform: translateY(-1px); }
           button.primary {
             background: linear-gradient(120deg, #22d3ee, #22c55e);
@@ -360,6 +361,26 @@ STYLES = """
           .timeline {
             display: grid; gap: 10px;
           }
+          .task-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 12px;
+          }
+          .task-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+            display: grid;
+            gap: 8px;
+          }
+          .task-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+          .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.25); font-size: 12px; color: var(--text); }
+          .status-pill.todo { background: rgba(148,163,184,0.15); border-color: rgba(148,163,184,0.25); }
+          .status-pill.in_progress { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.25); }
+          .status-pill.done { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.25); }
           .timeline-item {
             display: grid; grid-template-columns: 28px 1fr auto; gap: 10px;
             align-items: center; background: var(--card); border: 1px solid var(--border);
@@ -402,9 +423,35 @@ COMMON_REACT = """
                 {item.output && <div className="small" style={{ marginTop: 4, color: '#cbd5e1' }}>{String(item.output).slice(0, 160)}{String(item.output).length > 160 ? '…' : ''}</div>}
                 {item.error && <div className="small" style={{ marginTop: 4, color: '#fca5a5' }}>{item.error}</div>}
               </div>
-              <span className="mono" style={{ color: 'var(--muted)' }}>#{index+1}</span>
-            </div>
+                  <span className="mono" style={{ color: 'var(--muted)' }}>#{index+1}</span>
+                </div>
           );
+
+          const TaskCard = ({ task }) => {
+            const deadline = task.task_deadline || task.deadline || task.due_date || null;
+            const status = (task.status || task.task_status || 'todo').toLowerCase().replace(' ', '_');
+            const id = task.task_id || task._id || task.id || '—';
+            const order = task.execution_order ?? task.order ?? null;
+            const dependsOn = Array.isArray(task.depends_on) ? task.depends_on.filter(Boolean) : [];
+            return (
+              <div className="task-card">
+                <div className="task-meta">
+                  <span className={`status-pill ${status}`}>{status.replace('_', ' ')}</span>
+                  <span className="mono">ID: {id}</span>
+                  {order !== null && <span className="mono">Order: {order}</span>}
+                  {deadline && <span className="mono">Due: {deadline}</span>}
+                </div>
+                <h3 style={{ margin: '0 0 4px' }}>{task.task_name || task.title || 'Untitled task'}</h3>
+                <p className="small" style={{ margin: 0, color: '#cbd5e1' }}>{task.task_description || task.description || 'No description provided.'}</p>
+                {dependsOn.length > 0 && (
+                  <div className="task-meta">
+                    <span>Depends on:</span>
+                    {dependsOn.map(dep => <span key={dep} className="pill">Task {dep}</span>)}
+                  </div>
+                )}
+              </div>
+            );
+          };
 """
 
 def _render_page(title: str, script_body: str) -> HTMLResponse:
@@ -536,6 +583,7 @@ def render_home() -> HTMLResponse:
                 setMessages((prev) => [...prev, { role: 'assistant', content: data.answer || 'No answer produced.' }]);
                 setUploadedFiles([]);
                 setFileName('');
+                if (fileInputRef.current) fileInputRef.current.value = '';
               } catch (err) {
                 setStatus('');
                 setError({ message: 'Network error', type: 'network_error' });
@@ -620,23 +668,25 @@ Summarize the attached document`);
 
             return (
               <div className="panel">
-                <div className="hero">
+                <div className="hero" style={{ gap: 6, alignItems: 'flex-start' }}>
                   <div className="badge">Supervisor · Multi-Agent Orchestrator</div>
                   <div>
-                    <h1 style={{ margin: '4px 0 6px' }}>Chat with the supervisor.</h1>
-                    <p className="small">Send messages, see responses, and inspect which worker agents were used per turn.</p>
+                    <h1 style={{ margin: '0 0 6px' }}>Chat with the supervisor.</h1>
+                    <p className="small" style={{ maxWidth: 720 }}>A focused chat workspace: ask your question, attach files, inspect agent calls, and keep the flow moving.</p>
                   </div>
                 </div>
 
                 <div className="chat">
-                  <div className="input-controls">
-                    <label className="switch">
-                      <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
-                      <span className="slider"></span>
-                      <span>Show debug</span>
-                    </label>
-                    <span>Conversation: {conversationId.slice(0, 8)}…</span>
-                    <button className="primary" style={{ padding: '8px 12px' }} onClick={resetConversation}>New chat</button>
+                  <div className="input-controls" style={{ justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <label className="switch">
+                        <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
+                        <span className="slider"></span>
+                        <span>Show debug</span>
+                      </label>
+                      <span className="small" style={{ color: 'var(--muted)' }}>Tip: Keep requests concise; add context via file upload.</span>
+                    </div>
+                    {status && <span className="status"><span className="status-dot"></span>{status}</span>}
                   </div>
 
                   <div className="chat-feed" id="chat-feed" ref={chatRef}>
@@ -655,18 +705,21 @@ Summarize the attached document`);
 
                   <div className="input-bar">
                     <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." rows={3} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <button className="primary" onClick={handleSend} style={{ padding: '12px 18px' }}>Send</button>
-                      <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".txt,.md,.json,.csv,.log,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
-                      <button type="button" className="file-trigger" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Choose file</button>
-                      {fileName && <span className="file-meta">Attached: {fileName}</span>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".txt,.md,.json,.csv,.log,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
+                        <button type="button" className="file-trigger" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Attach file</button>
+                        {fileName && <span className="file-meta">Attached: {fileName}</span>}
+                      </div>
+                      <button className="primary" onClick={handleSend} style={{ padding: '12px 16px' }}>Send</button>
+                      {error && <div className="small" style={{ color: '#f87171' }}>Error: {error.message}</div>}
                     </div>
                   </div>
-                  {error && <div className="small" style={{ color: '#f87171' }}>Error: {error.message}</div>}
                 </div>
 
                 <div style={{ marginTop: 18 }}>
-                  <a href="/agents" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>View all agents →</a>
+                  <a href="/agents" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none', marginRight: 12 }}>View all agents →</a>
+                  <a href="/tasks" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>View tasks →</a>
                 </div>
 
                 {debug && (
@@ -757,6 +810,109 @@ def render_agents_page(agents: List[AgentMetadata]) -> HTMLResponse:
     """
     script = script_template.replace("__AGENTS_JSON__", agents_json)
     return _render_page("Agents - Supervisor", script)
+
+def render_tasks_page() -> HTMLResponse:
+    script = """
+          const App = () => {
+            const [tasks, setTasks] = useState([]);
+            const [status, setStatus] = useState('Loading tasks...');
+            const [error, setError] = useState(null);
+            const [sortBy, setSortBy] = useState('execution_order');
+
+            useEffect(() => {
+              fetch('/api/tasks')
+                .then(async (resp) => {
+                  if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    throw new Error(data.detail || 'Failed to load tasks');
+                  }
+                  return resp.json();
+                })
+                .then((data) => {
+                  let incoming = [];
+                  if (Array.isArray(data)) {
+                    incoming = data;
+                  } else if (Array.isArray(data.tasks)) {
+                    incoming = data.tasks;
+                  } else if (data.tasks && Array.isArray(data.tasks.tasks)) {
+                    incoming = data.tasks.tasks;
+                  }
+                  setTasks(incoming);
+                  setStatus('');
+                })
+                .catch((err) => {
+                  setError(err.message);
+                  setStatus('');
+                });
+            }, []);
+
+            const sortedTasks = React.useMemo(() => {
+              const copy = [...tasks];
+              const numeric = (v) => {
+                if (v === undefined || v === null) return Number.MAX_SAFE_INTEGER;
+                const n = Number(v);
+                return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+              };
+              const toDate = (v) => {
+                if (!v) return new Date(8640000000000000); // far future
+                const d = new Date(v);
+                return isNaN(d.getTime()) ? new Date(8640000000000000) : d;
+              };
+              copy.sort((a, b) => {
+                if (sortBy === 'id') {
+                  const aid = numeric(a.task_id || a.id || a._id);
+                  const bid = numeric(b.task_id || b.id || b._id);
+                  return aid - bid;
+                }
+                if (sortBy === 'deadline') {
+                  return toDate(a.task_deadline || a.deadline) - toDate(b.task_deadline || b.deadline);
+                }
+                // default execution order
+                const ao = numeric(a.execution_order);
+                const bo = numeric(b.execution_order);
+                return ao - bo;
+              });
+              return copy;
+            }, [tasks, sortBy]);
+
+            return (
+              <div className="panel">
+                <div className="hero">
+                  <div className="badge">Tasks</div>
+                  <div>
+                    <h1 style={{ margin: '4px 0 6px' }}>Knowledge Base Tasks</h1>
+                    <p className="small">Live tasks pulled from the KnowledgeBaseBuilderAgent backend.</p>
+                  </div>
+                </div>
+
+                <div className="controls" style={{ marginTop: 0 }}>
+                  <label className="small">Sort:</label>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, padding: '6px 10px' }}>
+                    <option value="id">By ID</option>
+                    <option value="deadline">By due date</option>
+                    <option value="execution_order">By execution order</option>
+                  </select>
+                  {status && <span className="small">{status}</span>}
+                  {error && <span className="small" style={{ color: '#f87171' }}>Error: {error}</span>}
+                </div>
+
+                {!status && !error && tasks.length === 0 && (
+                  <div className="small">No tasks found.</div>
+                )}
+
+                <div className="task-grid">
+                  {sortedTasks.map((task, idx) => <TaskCard key={task.task_id || task._id || idx} task={task} />)}
+                </div>
+
+                <footer style={{ marginTop: 30 }}>
+                  <a href="/" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>← Back to Dashboard</a>
+                </footer>
+              </div>
+            );
+          };
+          ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    """
+    return _render_page("Tasks - Supervisor", script)
 
 def render_query_page() -> HTMLResponse:
     script = """
