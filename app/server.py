@@ -13,14 +13,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+try:
+    import httpx  # type: ignore
+except ImportError:
+    httpx = None
+
 from .answer import compose_final_answer
 from .conversation import append_turn, get_history
 from .executor import execute_plan
+from .general import handle_general_query
 from .file_utils import normalize_file_uploads
 from .models import FrontendRequest, SupervisorResponse
 from .planner import plan_tools_with_llm
 from .registry import load_registry
-from .web import render_home, render_agents_page, render_query_page
+from .web import render_home, render_agents_page, render_query_page, render_tasks_page
 
 
 def build_app() -> FastAPI:
@@ -41,9 +47,33 @@ def build_app() -> FastAPI:
     async def view_query():
         return render_query_page()
 
+    @app.get("/tasks")
+    async def view_tasks():
+        return render_tasks_page()
+
     @app.get("/api/agents")
     async def list_agents():
         return [agent.dict() for agent in load_registry()]
+
+    @app.get("/api/tasks")
+    async def list_tasks():
+        if httpx is None:
+            raise HTTPException(status_code=503, detail="httpx not installed to fetch tasks")
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get("http://vps.zaim-abbasi.tech/knowledge-builder/tasks")
+                resp.raise_for_status()
+                data = resp.json()
+                tasks = data.get("tasks") if isinstance(data, dict) else data
+                if not isinstance(tasks, list):
+                    tasks = []
+                return {"tasks": tasks, "count": len(tasks), "status": data.get("status") if isinstance(data, dict) else None}
+        except httpx.HTTPStatusError as exc:
+            logger.error("Tasks fetch failed with status %s", exc.response.status_code)
+            raise HTTPException(status_code=502, detail="Failed to fetch tasks from knowledge base")
+        except Exception as exc:
+            logger.error("Tasks fetch failed: %s", exc)
+            raise HTTPException(status_code=502, detail="Failed to fetch tasks from knowledge base")
 
     @app.post("/api/query", response_model=SupervisorResponse)
     async def handle_query(payload: FrontendRequest) -> SupervisorResponse:
@@ -74,6 +104,19 @@ def build_app() -> FastAPI:
             logger.info(f"File uploads detected: {len(file_uploads)} file(s)")
             for i, fu in enumerate(file_uploads):
                 logger.info(f"  File {i+1}: {fu.get('filename', 'unknown')} ({fu.get('mime_type', 'unknown')}), size: {len(fu.get('base64_data', ''))} chars")
+
+        general = handle_general_query(query_text)
+        if general["kind"] in {"blocked", "general"}:
+            answer = general["answer"] or ""
+            intermediate_results: Dict[str, str] = {}
+            append_turn(conversation_id, "user", payload.query)
+            append_turn(conversation_id, "assistant", answer)
+            return SupervisorResponse(
+                answer=answer,
+                used_agents=[],
+                intermediate_results=intermediate_results,
+                error=None,
+            )
 
         plan = plan_tools_with_llm(query_text, registry, history=history)
 

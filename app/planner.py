@@ -406,6 +406,9 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
 
+    
+    
+
     client = _get_openrouter_client()
     if client is None:
         # No LLM available and heuristics could not map the query: out of scope.

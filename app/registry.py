@@ -66,7 +66,7 @@ def load_registry() -> List[AgentMetadata]:
         AgentMetadata(
             name="KnowledgeBaseBuilderAgent",
             description="Creates and manages tasks from plain English input. Uses LLM to parse task information (task_id, task_name, task_description, task_deadline) from any input format and stores tasks in MongoDB with default status 'todo'.",
-            intents=["create_task"],
+            intents=["create_task", "add_task", "task.create", "task.add"],
             type="http",
             endpoint="http://vps.zaim-abbasi.tech/knowledge-builder/message",
             healthcheck="http://vps.zaim-abbasi.tech/knowledge-builder/health",
@@ -81,6 +81,24 @@ def load_registry() -> List[AgentMetadata]:
             healthcheck="https://task-dependency-agent.vercel.app/health",
             timeout_ms=30000,
         ),
+        AgentMetadata(
+            name="productivity_agent",
+            description="Analyzes reflections, tracks goals, generates insights, detects trends, and produces productivity reports.",
+            intents=[
+                "productivity.analyze",       # /analysis
+                "productivity.report",        # /report
+                "goal.create",                # /goals (POST)
+                "goal.update",                # /goals/<id>/progress
+                "reflection.add",             # /reflections
+                "productivity.insights",      # /insights
+                "productivity.accountability" # /accountability
+            ],
+            type="http",
+            endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
+            healthcheck="https://spm-agent-api-production.up.railway.app/health",
+            timeout_ms=30000,
+        ),
+
         AgentMetadata(
             name="deadline_guardian_agent",
             description="Monitors deadlines, detects risks, and alerts when deadlines are at risk.",
