@@ -77,6 +77,8 @@ def build_app() -> FastAPI:
 
         plan = plan_tools_with_llm(query_text, registry, history=history)
 
+        print(f"Generated plan with {len(plan.steps)} steps for query: {query_text} and the following plan: {plan}")
+
         # Normalize context values to strings to satisfy downstream agents.
         context = {
             "user_id": str(payload.user_id) if payload.user_id is not None else "anonymous",
