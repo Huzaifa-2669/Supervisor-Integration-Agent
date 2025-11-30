@@ -507,6 +507,7 @@ def render_home() -> HTMLResponse:
             const [openIntermediate, setOpenIntermediate] = useState(false);
             const [fileName, setFileName] = useState('');
             const [uploadedFiles, setUploadedFiles] = useState([]);
+            const [isMeetingQuery, setIsMeetingQuery] = useState(false);
             const chatRef = React.useRef(null);
             const fileInputRef = React.useRef(null);
 
@@ -533,6 +534,13 @@ def render_home() -> HTMLResponse:
               fetch('/api/agents').then((r) => r.json()).then(setAgents).catch(() => setAgents([]));
               window.localStorage.setItem('conversationId', initialConv);
             }, []);
+
+            useEffect(() => {
+              const lowerInput = input.toLowerCase();
+              const meetingKeywords = ['meeting', 'minutes', 'follow-up', 'followup', 'action item', 'transcript', 'standup'];
+              const hasMeetingKeyword = meetingKeywords.some(keyword => lowerInput.includes(keyword));
+              setIsMeetingQuery(hasMeetingKeyword);
+            }, [input]);
 
             const resetConversation = () => {
               const next = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
@@ -594,20 +602,21 @@ def render_home() -> HTMLResponse:
             const handleFileUpload = (e) => {
               const file = e.target.files[0];
               if (!file) return;
-              
+
               setFileName(file.name);
               setStatus('Reading file...');
-              
-              const isTextFile = file.type.startsWith('text/') || 
-                                 file.name.endsWith('.txt') || 
-                                 file.name.endsWith('.md') || 
-                                 file.name.endsWith('.json') || 
-                                 file.name.endsWith('.csv') || 
+
+              const isTextFile = file.type.startsWith('text/') ||
+                                 file.name.endsWith('.txt') ||
+                                 file.name.endsWith('.md') ||
+                                 file.name.endsWith('.json') ||
+                                 file.name.endsWith('.csv') ||
                                  file.name.endsWith('.log');
-              
+
               const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-              const isDOCX = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+              const isDOCX = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
                             file.name.endsWith('.docx');
+              const isMP3 = file.type === 'audio/mpeg' || file.name.endsWith('.mp3');
               
               const reader = new FileReader();
               
@@ -641,13 +650,13 @@ ${fileContent}`);
                   const dataUrl = event.target.result;
                   const base64 = dataUrl.split(',')[1];
                   const mimeType = isPDF ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                  
+
                   setUploadedFiles([{
                     base64_data: base64,
                     filename: file.name,
                     mime_type: mimeType
                   }]);
-                  
+
                   if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
                     setInput('Summarize the attached document');
                   } else if (!input.toLowerCase().includes('summarize') && !input.toLowerCase().includes('document')) {
@@ -658,9 +667,30 @@ Summarize the attached document`);
                   setStatus('');
                 };
                 reader.readAsDataURL(file);
+              } else if (isMP3) {
+                reader.onload = (event) => {
+                  const dataUrl = event.target.result;
+                  const base64 = dataUrl.split(',')[1];
+
+                  setUploadedFiles([{
+                    base64_data: base64,
+                    filename: file.name,
+                    mime_type: 'audio/mpeg'
+                  }]);
+
+                  if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
+                    setInput('Extract meeting minutes and action items from this audio recording');
+                  } else if (!input.toLowerCase().includes('meeting') && !input.toLowerCase().includes('minutes')) {
+                    setInput(`${input}
+
+Extract meeting minutes from the audio file`);
+                  }
+                  setStatus('');
+                };
+                reader.readAsDataURL(file);
               } else {
                 setStatus('');
-                setError({ message: `File type ${file.type || 'unknown'} not supported. Supported: text files, PDF, DOCX.`, type: 'file_error' });
+                setError({ message: `File type ${file.type || 'unknown'} not supported. Supported: text files, PDF, DOCX${isMeetingQuery ? ', MP3' : ''}.`, type: 'file_error' });
                 setFileName('');
                 setUploadedFiles([]);
               }
