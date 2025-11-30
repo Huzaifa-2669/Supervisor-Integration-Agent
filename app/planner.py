@@ -74,7 +74,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     # unavailable, we declare out of scope (no steps).
     lower_q = query.lower()
     
-    if "progress_accountability_agent" in lower_q or "progress accountability agent" in lower_q:
+    if "progress_accountability_agent" in lower_q or "run progress_accountability" in lower_q:
         # Determine specific intent based on content
         if any(k in lower_q for k in ["goal", "complete", "finish", "achieve", "want to", "plan to", "aim to"]):
             intent = "goal.create"
@@ -85,7 +85,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         elif any(k in lower_q for k in ["report"]):
             intent = "productivity.report"
         elif any(k in lower_q for k in ["analyze"]):
-            intent = "reflection.analyze"
+            intent = "productivity.analyze"
         else:
             intent = "progress.track"
         return Plan(
@@ -122,9 +122,9 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
     
     if any(keyword in lower_q for keyword in [
-        "focus", "distracted", "distraction", "productivity", "procrastinating",
+        "focus", "distracted", "distraction", "procrastinating",
         "am i focused", "check my focus", "analyze focus", "focus score",
-        "how productive", "staying on task", "off task"
+        "staying on task", "off task"
     ]):
         return Plan(
             steps=[
@@ -224,7 +224,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
     
     # Task creation heuristics
-    if any(keyword in lower_q for keyword in ["create task", "new task", "add task", "task:", "i need to", "implement", "fix bug"]):
+    if any(keyword in lower_q for keyword in ["create task", "new task", "add task", "task:", "implement", "fix bug"]):
         return Plan(
             steps=[
                 PlanStep(
@@ -250,7 +250,6 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
     
     # Budget risk queries - check BEFORE deadline to catch budget-related "risk" queries
-    # This prevents "risks for overspending" from going to deadline_guardian_agent
     if any(phrase in lower_q for phrase in [
         "overspending risk", "budget risk", "financial risk", "spending risk",
         "risks for overspending", "risk of overspending", "overspending risks",
@@ -309,117 +308,25 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
-    # Email priority
-    if any(keyword in lower_q for keyword in ["email", "inbox"]) or \
-       ("priority" in lower_q and "email" in lower_q):
+    if any(keyword in lower_q for keyword in ["email", "inbox"]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
                     agent="email_priority_agent",
-                    intent="email.prioritize",
+                    intent="email.priority.classify",
                     input_source="user_query",
                 )
             ]
         )
     
-    # Progress tracking
-    if any(keyword in lower_q for keyword in ["progress", "goal", "task status"]):
-        return Plan(
-            steps=[
-                PlanStep(
-                    step_id=0,
-                    agent="progress_accountability_agent",
-                    intent="progress.track",
-                    input_source="user_query",
-                )
-            ]
-        )
-    
-    # Budget tracking and analysis - comprehensive keyword matching
-    # Note: Budget risk phrases are checked above before deadline agent
-    budget_keywords = [
-        # Core budget terms
-        "budget", "budgets", "budgeting", "budgeted",
-        # Spending terms
-        "spending", "spent", "spend", "spends", "spender",
-        # Expense terms
-        "expense", "expenses", "expenditure", "expenditures", "expend",
-        # Cost terms
-        "cost", "costs", "costing", "costed",
-        # Financial terms
-        "financial", "finance", "finances", "financing",
-        "money", "monetary", "funds", "funding", "funded",
-        # Allocation terms
-        "allocation", "allocate", "allocated", "allocating",
-        # Tracking/monitoring terms
-        "track", "tracking", "tracked", "tracks",
-        "monitor", "monitoring", "monitored", "monitors",
-        # Overspending terms (these catch budget risk queries)
-        "overspending", "overspend", "overspent", "over budget", "over-budget",
-        # Remaining/balance terms
-        "remaining", "remain", "remains", "balance", "balances", "left over",
-        # Limit terms
-        "limit", "limits", "limited", "limiting", "budget limit", "budget cap",
-        # Forecast/prediction terms
-        "forecast", "forecasts", "forecasting", "forecasted",
-        "predict", "predicts", "prediction", "predictions", "predicting", "predicted",
-        # Analysis terms
-        "analyze", "analyzes", "analysis", "analyses", "analyzing", "analyzed",
-        "analytics", "analytical",
-        # Report terms
-        "report", "reports", "reporting", "reported",
-        "summary", "summaries", "summarize", "summarizing", "summarized",
-        # Recommendation terms
-        "recommend", "recommends", "recommendation", "recommendations", "recommending", "recommended",
-        "suggestion", "suggestions", "suggest", "suggests", "suggesting", "suggested",
-        "advice", "advise", "advises", "advising", "advised",
-        # Anomaly terms
-        "anomaly", "anomalies", "anomalous", "unusual spending", "unusual expense",
-        # Status/check terms
-        "status", "state", "current budget", "budget status", "budget state",
-        "check budget", "budget check", "view budget", "show budget",
-        # Project budget terms
-        "project budget", "project cost", "project costs", "project spending",
-        "project expense", "project expenses", "project financial",
-        # Project listing terms
-        "projects", "project list", "list projects", "all projects", "current projects",
-        "projects and budgets", "show projects", "list all projects", "what projects",
-        "which projects", "my projects", "project list", "list of projects",
-        "all my projects", "current projects", "active projects", "project overview",
-        "projects with budgets", "projects budget", "project budgets",
-        # Update/record terms
-        "update budget", "update spending", "add expense", "add spending",
-        "record expense", "log expense", "log spending", "enter expense",
-        # Question terms
-        "how much", "how much left", "how much remaining", "what's my budget",
-        "what is my budget", "budget question", "budget query",
-        # Management terms
-        "manage budget", "budget management", "control spending", "spending control",
-        "budget control", "financial management", "expense management",
-    ]
-    
-    # If query contains budget keywords, route to budget tracker
-    if any(keyword in lower_q for keyword in budget_keywords):
-        # Since the agent handles intent detection internally, we can use a default intent
-        # or let the agent determine it. Using budget.question as default.
-        # The agent will parse the query and determine the correct intent.
-        return Plan(
-            steps=[
-                PlanStep(
-                    step_id=0,
-                    agent="budget_tracker_agent",
-                    intent="budget.question",  # Default - agent will determine actual intent
-                    input_source="user_query",
-                )
-            ]
-        )
-    
-    # Goal creation - natural language goal setting
+    # Goal creation - natural language with required format hints
     if any(k in lower_q for k in [
-        "i want to complete", "i want to finish", "i need to", "my goal is",
+        "i want to complete", "i want to finish", "my goal is",
         "set a goal", "create goal", "new goal", "add goal", "set goal",
-        "i plan to", "i'm planning to", "i aim to", "target is"
+        "i plan to", "i'm planning to", "i aim to", "target is",
+        "academic goal", "personal goal", "professional goal",
+        "daily goal", "weekly goal", "long-term goal", "long term goal"
     ]):
         return Plan(
             steps=[
@@ -427,6 +334,19 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
                     step_id=0,
                     agent="progress_accountability_agent",
                     intent="goal.create",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
+    # List goals
+    if any(k in lower_q for k in ["list goal", "show goal", "my goals", "all goals", "view goals"]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="progress_accountability_agent",
+                    intent="goal.list",
                     input_source="user_query",
                 )
             ]
@@ -451,8 +371,8 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     # Add reflection / journaling
     if any(k in lower_q for k in [
         "add reflection", "journal", "daily log", "reflection", "wrote today",
-        "today i", "i felt", "i struggled", "i completed", "my day was",
-        "log my", "record my", "note that i"
+        "today i felt", "i felt", "i struggled", "i completed", "my day was",
+        "log my day", "record my day", "note that i", "feeling today"
     ]):
         return Plan(
             steps=[
@@ -465,27 +385,21 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
 
-    # Analyze reflections
-    if any(k in lower_q for k in [
-        "analyze reflection", "reflection pattern", "reflection trend",
-        "review reflections", "my patterns", "behavioral pattern"
-    ]):
+    # Get reminders
+    if any(k in lower_q for k in ["reminder", "reminders", "remind me", "my reminders"]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
                     agent="progress_accountability_agent",
-                    intent="reflection.analyze",
+                    intent="reminders.get",
                     input_source="user_query",
                 )
             ]
         )
 
     # Insights
-    if any(k in lower_q for k in [
-        "insight", "productivity insight", "personalized insight",
-        "give me insight", "my insights"
-    ]):
+    if any(k in lower_q for k in ["insight", "insights", "productivity insight"]):
         return Plan(
             steps=[
                 PlanStep(
@@ -497,27 +411,34 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
 
-    # Accountability check
-    if any(k in lower_q for k in [
-        "accountability", "hold me accountable", "am i on track",
-        "check my accountability", "accountability status"
-    ]):
+    # Accountability
+    if any(k in lower_q for k in ["accountability", "accountable", "am i on track"]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
                     agent="progress_accountability_agent",
-                    intent="progress.accountability",
+                    intent="productivity.accountability",
+                    input_source="user_query",
+                )
+            ]
+        )
+
+    # General analysis/trends
+    if any(k in lower_q for k in ["analysis", "analyze", "trend", "pattern"]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="progress_accountability_agent",
+                    intent="productivity.analyze",
                     input_source="user_query",
                 )
             ]
         )
 
     # Report generation
-    if any(k in lower_q for k in [
-        "productivity report", "generate report", "my report",
-        "weekly report", "progress report"
-    ]):
+    if any(k in lower_q for k in ["productivity report", "generate report", "my report", "weekly report"]):
         return Plan(
             steps=[
                 PlanStep(
@@ -529,17 +450,95 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
 
-    # General progress tracking (catch-all for progress/goal queries)
-    if any(k in lower_q for k in [
-        "progress", "my goals", "show goals", "goal", "how am i doing",
-        "my progress", "track progress", "show my progress"
-    ]):
+    # General progress tracking
+    if any(k in lower_q for k in ["progress", "task status", "how am i doing", "my progress", "show progress"]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
                     agent="progress_accountability_agent",
                     intent="progress.track",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
+    # Budget tracking and analysis - comprehensive keyword matching
+    budget_keywords = [
+        "budget", "budgets", "budgeting", "budgeted",
+        "spending", "spent", "spend", "spends",
+        "expense", "expenses", "expenditure",
+        "cost", "costs", "costing",
+        "financial", "finance", "finances",
+        "money", "monetary", "funds", "funding",
+        "allocation", "allocate", "allocated",
+        "overspending", "overspend", "overspent", "over budget",
+        "remaining", "balance", "left over",
+        "forecast", "predict", "prediction",
+        "how much", "how much left", "what's my budget",
+        "manage budget", "budget management",
+    ]
+    
+    if any(keyword in lower_q for keyword in budget_keywords):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="budget_tracker_agent",
+                    intent="budget.question",
+                    input_source="user_query",
+                )
+            ]
+        )
+
+    # Document review detection
+    if any(keyword in lower_q for keyword in [
+        "review document", "check spelling", "grammar check", "compliance check",
+        "proofread", "docx", "document review", "review my document"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="document_reviewer_agent",
+                    intent="document.review",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
+    # Hiring/Resume operations
+    if any(keyword in lower_q for keyword in [
+        "resume", "cv", "parse resume", "extract skills",
+        "candidate", "applicant", "job application",
+        "hire", "hiring", "recruit", "screening",
+        "match skill", "skill match", "evaluate candidate",
+        "score candidate", "rank candidate", "compare candidate",
+        "bias", "fairness", "discrimination",
+        "hiring report", "recruitment report"
+    ]):
+        # Determine specific intent based on query
+        if any(kw in lower_q for kw in ["parse", "extract", "cv", "resume text"]):
+            intent = "hiring.parse_resume"
+        elif any(kw in lower_q for kw in ["match", "skill", "requirement", "job description"]):
+            intent = "hiring.match_skills"
+        elif any(kw in lower_q for kw in ["score", "evaluate", "assess", "rate"]):
+            intent = "hiring.score_candidate"
+        elif any(kw in lower_q for kw in ["rank", "compare", "multiple candidate", "best candidate"]):
+            intent = "hiring.rank_candidates"
+        elif any(kw in lower_q for kw in ["bias", "fair", "discrimination", "equity"]):
+            intent = "hiring.check_bias"
+        elif any(kw in lower_q for kw in ["report", "summary", "analysis"]):
+            intent = "hiring.generate_report"
+        else:
+            intent = "hiring.match_skills"  # Default to skill matching
+        
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="hiring_screener_agent",
+                    intent=intent,
                     input_source="user_query",
                 )
             ]
@@ -562,9 +561,26 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "If the request is outside the available agents\' scope, return {\"steps\":[]} (empty list) to signal out-of-scope. "
         "Strictly match agent intents to the user need; avoid generic summarizers unless summarization is explicitly requested. "
         "\n\nFor onboarding_buddy_agent:\n"
-        "- Use \'onboarding.create\' or \'employee.create\' for creating new employees\n"
-        "- Use \'onboarding.update\' or \'employee.update\' for updating employee information\n"
-        "- Use \'onboarding.check_progress\' or \'employee.check_status\' for checking employee status or profile completion"
+        "- Use 'onboarding.create' or 'employee.create' for creating new employees\n"
+        "- Use 'onboarding.update' or 'employee.update' for updating employee information\n"
+        "- Use 'onboarding.check_progress' or 'employee.check_status' for checking employee status or profile completion\n"
+        "\n\nFor hiring_screener_agent:\n"
+        "- Use 'hiring.parse_resume' for extracting structured data from resumes\n"
+        "- Use 'hiring.match_skills' for comparing candidate skills against job requirements\n"
+        "- Use 'hiring.score_candidate' for evaluating candidate fitness based on multiple factors\n"
+        "- Use 'hiring.rank_candidates' for ranking multiple candidates\n"
+        "- Use 'hiring.check_bias' for detecting potential bias in hiring decisions\n"
+        "- Use 'hiring.generate_report' for creating comprehensive hiring reports\n"
+        "\n\nFor progress_accountability_agent:\n"
+        "- Use 'goal.create' for creating new goals (user says 'I want to complete X by DATE')\n"
+        "- Use 'goal.update' for updating goal progress\n"
+        "- Use 'goal.list' for listing all goals\n"
+        "- Use 'reflection.add' for adding daily reflections/journals\n"
+        "- Use 'reminders.get' for getting reminders\n"
+        "- Use 'productivity.report' for generating productivity reports\n"
+        "- Use 'productivity.insights' for getting personalized insights\n"
+        "- Use 'productivity.accountability' for accountability status\n"
+        "- Use 'progress.track' for general progress tracking"
     )
     user_payload = {
         "user_query": query,

@@ -4,6 +4,7 @@ capabilities and (b) look up connection details when calling a worker.
 """
 from __future__ import annotations
 
+import os
 from typing import List
 
 from .models import AgentMetadata
@@ -11,26 +12,9 @@ from .models import AgentMetadata
 
 def load_registry() -> List[AgentMetadata]:
     """Return the known worker agents. Replace endpoints/commands with real ones."""
+    
     return [
-        AgentMetadata(
-            name="progress_accountability_agent",
-            description="Comprehensive progress tracking and accountability agent. Tracks goals, tasks, and progress. Analyzes reflections to detect patterns, trends, and anomalies. Generates productivity reports with personalized insights. Supports creating goals from natural language, updating goal progress, adding reflections, and providing accountability summaries. Use for any goal-setting, progress tracking, reflection analysis, or productivity monitoring needs.",
-            intents=[
-                "progress.track",           # Get accountability payload
-                "progress.accountability",  # Alias for accountability
-                "goal.create",              # Create a new goal
-                "goal.update",              # Update goal progress
-                "reflection.add",           # Add a reflection
-                "reflection.analyze",       # Analyze reflections for patterns
-                "productivity.report",      # Generate productivity report
-                "productivity.insights",    # Get personalized insights
-                "productivity.freeform",    # Natural language message handling
-            ],
-            type="http",
-            endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
-            healthcheck="https://spm-agent-api-production.up.railway.app/health",
-            timeout_ms=30000,
-        ),
+        
         AgentMetadata(
             name="email_priority_agent",
             description="Classifies email-like text into priority levels (high/medium/low) and returns explanations.",
@@ -93,6 +77,27 @@ def load_registry() -> List[AgentMetadata]:
             timeout_ms=30000,
         ),
         AgentMetadata(
+            name="progress_accountability_agent",
+            description="Tracks goals, progress, reflections, reminders, productivity reports, insights, and accountability metrics. Supports natural language goal creation (requires date in YYYY-MM-DD format, category, goal type, and priority), reflection logging, and comprehensive productivity analysis.",
+            intents=[
+                "progress.track",              # Get accountability payload
+                "goal.create",                 # Create a new goal
+                "goal.update",                 # Update goal progress
+                "goal.list",                   # List all goals
+                "reflection.add",              # Add a reflection
+                "reminders.get",               # Get reminders
+                "productivity.report",         # Generate productivity report
+                "productivity.analyze",        # Analyze productivity patterns
+                "productivity.accountability", # Get accountability status
+                "productivity.insights",       # Get personalized insights
+                "progress.message"             # Free-form message handling
+            ],
+            type="http",
+            endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
+            healthcheck="https://spm-agent-api-production.up.railway.app/health",
+            timeout_ms=30000,
+        ),
+        AgentMetadata(
             name="deadline_guardian_agent",
             description="AI-powered deadline monitoring with dependency analysis. Identifies cascading risks, bottlenecks, and blocked tasks using Google Gemini Flash 2.0. Provides strategic recommendations for clearing bottlenecks and managing overdue tasks.",
             intents=["deadline.monitor"],
@@ -112,9 +117,9 @@ def load_registry() -> List[AgentMetadata]:
                 "productivity.assess"
             ],
             type="http",
-            endpoint="http://localhost:8001/handle",  # Local endpoint for Focus Enforcer service
+            endpoint="http://localhost:8001/handle",
             healthcheck="http://localhost:8001/health",
-            timeout_ms=60000,  # 60 seconds timeout for LLM analysis
+            timeout_ms=60000,
         ),
         AgentMetadata(
             name="budget_tracker_agent",
@@ -132,7 +137,46 @@ def load_registry() -> List[AgentMetadata]:
             type="http",
             endpoint="https://budget-tracker-agent.onrender.com/api/query",
             healthcheck="https://budget-tracker-agent.onrender.com/api/health",
-            timeout_ms=30000,  # Increased to 30s for Render.com cold starts (docs say 5000ms but that's too short for cold starts)
+            timeout_ms=30000,
+        ),
+        AgentMetadata(
+            name="hiring_screener_agent",
+            description=(
+                "AI-powered hiring assistant that parses resumes (PDF/DOCX), matches candidate skills against job requirements, "
+                "scores candidates using multi-factor analysis, ranks multiple applicants with statistical metrics, "
+                "detects potential bias in hiring decisions, and generates comprehensive hiring reports. "
+                "Supports semantic skill matching, experience evaluation, and batch candidate processing."
+            ),
+            intents=[
+                "hiring.parse_resume",
+                "hiring.match_skills",
+                "hiring.score_candidate",
+                "hiring.rank_candidates",
+                "hiring.check_bias",
+                "hiring.generate_report",
+                "resume.parse",
+                "candidate.evaluate",
+                "candidate.score",
+                "candidate.rank",
+            ],
+            type="http",
+            endpoint=f"https://hiring-screener-agent-sre.onrender.com/supervisor/task",
+            healthcheck="https://hiring-screener-agent-sre.onrender.com/health",
+            timeout_ms=30000,
+        ),
+        AgentMetadata(
+            name="document_reviewer_agent",
+            description="Reviews documents (.docx or text) for spelling, grammar, compliance issues, and generates structured feedback.",
+            intents=[
+                "document.review",
+                "document.review.spelling",
+                "document.review.grammar",
+                "document.review.compliance"
+            ],
+            type="http",
+            endpoint="https://document-reviewer-agent.onrender.com/handle",
+            healthcheck="https://document-reviewer-agent.onrender.com/health",
+            timeout_ms=60000,
         ),
     ]
 
