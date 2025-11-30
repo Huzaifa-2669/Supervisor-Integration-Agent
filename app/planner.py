@@ -74,6 +74,81 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     # unavailable, we declare out of scope (no steps).
     lower_q = query.lower()
     
+    if any(keyword in lower_q for keyword in [
+        "start focus mode", "turn on focus", "enable focus", "focus mode on",
+        "start monitoring", "start focus", "begin monitoring", "track my focus",
+        "monitor my activity", "watch my productivity"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="deadline_guardian_agent",
+                    intent="deadline.monitor",
+                    input_source="user_query",
+                ),
+                PlanStep(
+                    step_id=1,
+                    agent="focus_enforcer_agent",
+                    intent="focus.start_monitoring",
+                    input_source="step:0.output.result",  # Pass deadline data to focus enforcer
+                ),
+            ]
+        )
+    
+    if any(keyword in lower_q for keyword in [
+        "focus", "distracted", "distraction", "productivity", "procrastinating",
+        "am i focused", "check my focus", "analyze focus", "focus score",
+        "how productive", "staying on task", "off task"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="deadline_guardian_agent",
+                    intent="deadline.monitor",
+                    input_source="user_query",
+                ),
+                PlanStep(
+                    step_id=1,
+                    agent="focus_enforcer_agent",
+                    intent="focus.analyze",
+                    input_source="step:0.output.result",  # Pass deadline data
+                ),
+            ]
+        )
+    
+    # Stop focus monitoring session (no deadline needed)
+    if any(keyword in lower_q for keyword in [
+        "stop monitoring", "stop focus", "end monitoring", "stop tracking",
+        "turn off focus", "disable focus", "focus mode off"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="focus_enforcer_agent",
+                    intent="focus.stop_monitoring",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
+    # Check focus status (no deadline needed - just status check)
+    if any(keyword in lower_q for keyword in [
+        "focus status", "monitoring status", "is focus on", "focus running"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="focus_enforcer_agent",
+                    intent="focus.check_status",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
     # Onboarding agent heuristics - check for all intents
     if any(keyword in lower_q for keyword in [
         "onboard", "onboarding", "new hire", "new employee", 
@@ -323,12 +398,12 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "You are a planner that selects worker agents to satisfy a user query. "
         'Return ONLY JSON with the shape {"steps":[{"step_id":0,"agent":...,"intent":...,"input_source":...},...]}. '
         "input_source is either 'user_query' or 'step:X.output.result'. "
-        "If the request is outside the available agents' scope, return {\"steps\":[]} (empty list) to signal out-of-scope. "
+        "If the request is outside the available agents\' scope, return {\"steps\":[]} (empty list) to signal out-of-scope. "
         "Strictly match agent intents to the user need; avoid generic summarizers unless summarization is explicitly requested. "
         "\n\nFor onboarding_buddy_agent:\n"
-        "- Use 'onboarding.create' or 'employee.create' for creating new employees\n"
-        "- Use 'onboarding.update' or 'employee.update' for updating employee information\n"
-        "- Use 'onboarding.check_progress' or 'employee.check_status' for checking employee status or profile completion"
+        "- Use \'onboarding.create\' or \'employee.create\' for creating new employees\n"
+        "- Use \'onboarding.update\' or \'employee.update\' for updating employee information\n"
+        "- Use \'onboarding.check_progress\' or \'employee.check_status\' for checking employee status or profile completion"
     )
     user_payload = {
         "user_query": query,
