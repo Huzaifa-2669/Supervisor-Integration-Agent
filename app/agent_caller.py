@@ -74,18 +74,58 @@ async def call_agent(
     if agent_meta.type == "http" and agent_meta.endpoint and httpx is not None:
         try:
             async with httpx.AsyncClient(timeout=agent_meta.timeout_ms / 1000) as client:
-                resp = await client.post(agent_meta.endpoint, json=handshake.dict())
-                if resp.status_code != 200:
-                    return AgentResponse(
-                        request_id=request_id,
-                        agent_name=agent_meta.name,
-                        status="error",
-                        error=ErrorModel(
-                            type="http_error",
-                            message=f"HTTP {resp.status_code} calling {agent_meta.endpoint}",
-                        ),
-                    )
-                return AgentResponse(**resp.json())
+                # Special handling for conflict_resolver_agent which expects { "message": "..." }
+                if agent_meta.name == "conflict_resolver_agent":
+                    payload = {"message": text}
+                    resp = await client.post(agent_meta.endpoint, json=payload)
+                    if resp.status_code != 200:
+                        return AgentResponse(
+                            request_id=request_id,
+                            agent_name=agent_meta.name,
+                            status="error",
+                            error=ErrorModel(
+                                type="http_error",
+                                message=f"HTTP {resp.status_code} calling {agent_meta.endpoint}",
+                            ),
+                        )
+                    # Transform conflict resolver response to standard format
+                    conflict_data = resp.json()
+                    if conflict_data.get("success"):
+                        result_data = conflict_data.get("data", {})
+                        return AgentResponse(
+                            request_id=request_id,
+                            agent_name=agent_meta.name,
+                            status="success",
+                            output=OutputModel(
+                                result=result_data.get("resolution", ""),
+                                confidence=1.0,
+                                details=f"Scenario: {result_data.get('scenario', '')}"
+                            ),
+                        )
+                    else:
+                        return AgentResponse(
+                            request_id=request_id,
+                            agent_name=agent_meta.name,
+                            status="error",
+                            error=ErrorModel(
+                                type="agent_error",
+                                message=conflict_data.get("message", "Unknown error from conflict resolver")
+                            ),
+                        )
+                else:
+                    # Standard handshake for all other agents
+                    resp = await client.post(agent_meta.endpoint, json=handshake.dict())
+                    if resp.status_code != 200:
+                        return AgentResponse(
+                            request_id=request_id,
+                            agent_name=agent_meta.name,
+                            status="error",
+                            error=ErrorModel(
+                                type="http_error",
+                                message=f"HTTP {resp.status_code} calling {agent_meta.endpoint}",
+                            ),
+                        )
+                    return AgentResponse(**resp.json())
         except Exception as exc:
             return AgentResponse(
                 request_id=request_id,

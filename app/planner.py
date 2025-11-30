@@ -210,6 +210,24 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
+    # Conflict resolution
+    if any(keyword in lower_q for keyword in [
+        "conflict", "dispute", "disagreement", "argument", 
+        "resolve conflict", "mediate", "mediation", "team conflict",
+        "interpersonal", "communication issue"
+    ]):
+        print("Conflict resolution detected in query.")
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="conflict_resolver_agent",
+                    intent="conflict.resolve",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
     # Progress tracking
     if any(keyword in lower_q for keyword in ["progress", "goal", "task status"]):
         print("Progress tracking detected in query.")
