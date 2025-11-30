@@ -297,8 +297,10 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
-    # Progress tracking
-    if any(keyword in lower_q for keyword in ["progress", "goal", "task status"]):
+   
+    # Progress accountability agent – detailed routing
+    # Track general progress
+    if any(k in lower_q for k in ["progress", "task status"]):
         return Plan(
             steps=[
                 PlanStep(
@@ -396,7 +398,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="goal.create",
                     input_source="user_query",
                 )
@@ -409,7 +411,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="goal.update",
                     input_source="user_query",
                 )
@@ -422,7 +424,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="reflection.add",
                     input_source="user_query",
                 )
@@ -435,7 +437,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="productivity.insights",
                     input_source="user_query",
                 )
@@ -448,20 +450,20 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="productivity.accountability",
                     input_source="user_query",
                 )
             ]
         )
 
-    # General analysis (default intent)
+    # General analysis
     if any(k in lower_q for k in ["analysis", "analyze", "trend", "pattern"]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="productivity.analyze",
                     input_source="user_query",
                 )
@@ -474,7 +476,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="productivity.report",
                     input_source="user_query",
                 )
@@ -496,7 +498,6 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
                 )
             ]
         )
-    
     
 
     

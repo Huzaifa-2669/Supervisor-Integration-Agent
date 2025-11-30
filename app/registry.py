@@ -14,14 +14,7 @@ def load_registry() -> List[AgentMetadata]:
     """Return the known worker agents. Replace endpoints/commands with real ones."""
     
     return [
-        AgentMetadata(
-            name="progress_accountability_agent",
-            description="Tracks goals, tasks, and progress to provide accountability insights.",
-            intents=["progress.track"],
-            type="http",
-            endpoint="https://example.com/progress/handle",
-            healthcheck="https://example.com/progress/health",
-        ),
+        
         AgentMetadata(
             name="email_priority_agent",
             description="Classifies email-like text into priority levels (high/medium/low) and returns explanations.",
@@ -84,22 +77,27 @@ def load_registry() -> List[AgentMetadata]:
             timeout_ms=30000,
         ),
         AgentMetadata(
-            name="productivity_agent",
-            description="Analyzes reflections, tracks goals, generates insights, detects trends, and produces productivity reports.",
+            name="progress_accountability_agent",
+            description="Tracks goals, progress, reflections, reminders, productivity reports, insights, and accountability metrics.",
             intents=[
-                "productivity.analyze",       # /analysis
-                "productivity.report",        # /report
-                "goal.create",                # /goals (POST)
-                "goal.update",                # /goals/<id>/progress
-                "reflection.add",             # /reflections
-                "productivity.insights",      # /insights
-                "productivity.accountability" # /accountability
+                "progress.track",              # /agent/message or json payload
+                "goal.create",                 # POST /goals
+                "goal.update",                 # PATCH /goals/<id>/progress
+                "goal.list",                   # GET /goals
+                "reflection.add",              # POST /reflections
+                "reminders.get",               # GET /reminders
+                "productivity.report",         # GET /report
+                "productivity.analyze",        # GET /analysis
+                "productivity.accountability", # GET /accountability
+                "productivity.insights",       # GET /insights
+                "progress.message"             # Free-form message logging
             ],
             type="http",
             endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
             healthcheck="https://spm-agent-api-production.up.railway.app/health",
             timeout_ms=30000,
         ),
+
 
         AgentMetadata(
             name="deadline_guardian_agent",
