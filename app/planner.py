@@ -224,6 +224,27 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
+    # Budget risk queries - check BEFORE deadline to catch budget-related "risk" queries
+    # This prevents "risks for overspending" from going to deadline_guardian_agent
+    if any(phrase in lower_q for phrase in [
+        "overspending risk", "budget risk", "financial risk", "spending risk",
+        "risks for overspending", "risk of overspending", "overspending risks",
+        "budget risks", "financial risks", "spending risks",
+        "analyze risk", "analyze risks", "risks for", "risk for"
+    ]) and any(budget_term in lower_q for budget_term in [
+        "overspending", "spending", "budget", "financial", "expense", "cost"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="budget_tracker_agent",
+                    intent="budget.question",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
     # Deadline monitoring
     if any(keyword in lower_q for keyword in ["deadline", "due date", "risk", "slip"]):
         return Plan(
@@ -284,6 +305,85 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
                     step_id=0,
                     agent="progress_accountability_agent",
                     intent="progress.track",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
+    # Budget tracking and analysis - comprehensive keyword matching
+    # Note: Budget risk phrases are checked above before deadline agent
+    budget_keywords = [
+        # Core budget terms
+        "budget", "budgets", "budgeting", "budgeted",
+        # Spending terms
+        "spending", "spent", "spend", "spends", "spender",
+        # Expense terms
+        "expense", "expenses", "expenditure", "expenditures", "expend",
+        # Cost terms
+        "cost", "costs", "costing", "costed",
+        # Financial terms
+        "financial", "finance", "finances", "financing",
+        "money", "monetary", "funds", "funding", "funded",
+        # Allocation terms
+        "allocation", "allocate", "allocated", "allocating",
+        # Tracking/monitoring terms
+        "track", "tracking", "tracked", "tracks",
+        "monitor", "monitoring", "monitored", "monitors",
+        # Overspending terms (these catch budget risk queries)
+        "overspending", "overspend", "overspent", "over budget", "over-budget",
+        # Remaining/balance terms
+        "remaining", "remain", "remains", "balance", "balances", "left over",
+        # Limit terms
+        "limit", "limits", "limited", "limiting", "budget limit", "budget cap",
+        # Forecast/prediction terms
+        "forecast", "forecasts", "forecasting", "forecasted",
+        "predict", "predicts", "prediction", "predictions", "predicting", "predicted",
+        # Analysis terms
+        "analyze", "analyzes", "analysis", "analyses", "analyzing", "analyzed",
+        "analytics", "analytical",
+        # Report terms
+        "report", "reports", "reporting", "reported",
+        "summary", "summaries", "summarize", "summarizing", "summarized",
+        # Recommendation terms
+        "recommend", "recommends", "recommendation", "recommendations", "recommending", "recommended",
+        "suggestion", "suggestions", "suggest", "suggests", "suggesting", "suggested",
+        "advice", "advise", "advises", "advising", "advised",
+        # Anomaly terms
+        "anomaly", "anomalies", "anomalous", "unusual spending", "unusual expense",
+        # Status/check terms
+        "status", "state", "current budget", "budget status", "budget state",
+        "check budget", "budget check", "view budget", "show budget",
+        # Project budget terms
+        "project budget", "project cost", "project costs", "project spending",
+        "project expense", "project expenses", "project financial",
+        # Project listing terms
+        "projects", "project list", "list projects", "all projects", "current projects",
+        "projects and budgets", "show projects", "list all projects", "what projects",
+        "which projects", "my projects", "project list", "list of projects",
+        "all my projects", "current projects", "active projects", "project overview",
+        "projects with budgets", "projects budget", "project budgets",
+        # Update/record terms
+        "update budget", "update spending", "add expense", "add spending",
+        "record expense", "log expense", "log spending", "enter expense",
+        # Question terms
+        "how much", "how much left", "how much remaining", "what's my budget",
+        "what is my budget", "budget question", "budget query",
+        # Management terms
+        "manage budget", "budget management", "control spending", "spending control",
+        "budget control", "financial management", "expense management",
+    ]
+    
+    # If query contains budget keywords, route to budget tracker
+    if any(keyword in lower_q for keyword in budget_keywords):
+        # Since the agent handles intent detection internally, we can use a default intent
+        # or let the agent determine it. Using budget.question as default.
+        # The agent will parse the query and determine the correct intent.
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="budget_tracker_agent",
+                    intent="budget.question",  # Default - agent will determine actual intent
                     input_source="user_query",
                 )
             ]

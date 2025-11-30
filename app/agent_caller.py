@@ -6,6 +6,7 @@ alignment with production behavior.
 """
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from typing import Any, Dict
@@ -73,8 +74,19 @@ async def call_agent(
     # Only live HTTP calls are supported; no simulation fallback.
     if agent_meta.type == "http" and agent_meta.endpoint and httpx is not None:
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
             async with httpx.AsyncClient(timeout=agent_meta.timeout_ms / 1000) as client:
-                resp = await client.post(agent_meta.endpoint, json=handshake.dict())
+                # Special handling for budget_tracker_agent - it expects {"query": "..."} format
+                if agent_meta.name == "budget_tracker_agent":
+                    payload = {"query": text}
+                    logger.info(f"Calling {agent_meta.name} with payload: {payload}")
+                else:
+                    payload = handshake.dict()
+                
+                resp = await client.post(agent_meta.endpoint, json=payload)
+                logger.info(f"{agent_meta.name} response status: {resp.status_code}")
                 if resp.status_code != 200:
                     return AgentResponse(
                         request_id=request_id,
@@ -85,7 +97,66 @@ async def call_agent(
                             message=f"HTTP {resp.status_code} calling {agent_meta.endpoint}",
                         ),
                     )
-                return AgentResponse(**resp.json())
+                
+                # Special handling for budget_tracker_agent response format
+                if agent_meta.name == "budget_tracker_agent":
+                    try:
+                        resp_data = resp.json()
+                        # Convert budget tracker response to supervisor handshake format
+                        if resp_data.get("success", False):
+                            # Extract the response text or format the data
+                            result_text = resp_data.get("response")
+                            if not result_text:
+                                # If no "response" field, format the key data into a readable string
+                                parts = []
+                                if "remaining" in resp_data:
+                                    parts.append(f"Remaining: ${resp_data['remaining']:.2f}")
+                                if "project_name" in resp_data:
+                                    parts.append(f"Project: {resp_data['project_name']}")
+                                if "overshoot_risk" in resp_data:
+                                    parts.append(f"Overshoot Risk: {resp_data['overshoot_risk']}")
+                                if "recommendations" in resp_data and resp_data["recommendations"]:
+                                    parts.append(f"Recommendations: {', '.join(resp_data['recommendations'])}")
+                                result_text = ". ".join(parts) if parts else str(resp_data)
+                            
+                            return AgentResponse(
+                                request_id=request_id,
+                                agent_name=agent_meta.name,
+                                status="success",
+                                output=OutputModel(
+                                    result=result_text,
+                                    details=json.dumps(resp_data, indent=2) if resp_data else None,
+                                ),
+                                error=None,
+                            )
+                        else:
+                            # Budget tracker returned success=false or error
+                            error_msg = resp_data.get("error", resp_data.get("message", "Unknown error from budget tracker agent"))
+                            return AgentResponse(
+                                request_id=request_id,
+                                agent_name=agent_meta.name,
+                                status="error",
+                                error=ErrorModel(
+                                    type="agent_error",
+                                    message=str(error_msg),
+                                ),
+                            )
+                    except Exception as parse_exc:
+                        # If JSON parsing fails, try to return the raw response
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to parse budget_tracker_agent response: {parse_exc}, raw: {resp.text[:500]}")
+                        return AgentResponse(
+                            request_id=request_id,
+                            agent_name=agent_meta.name,
+                            status="error",
+                            error=ErrorModel(
+                                type="parse_error",
+                                message=f"Failed to parse agent response: {str(parse_exc)}",
+                            ),
+                        )
+                else:
+                    return AgentResponse(**resp.json())
         except Exception as exc:
             return AgentResponse(
                 request_id=request_id,
