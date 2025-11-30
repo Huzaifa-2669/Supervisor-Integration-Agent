@@ -154,6 +154,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "onboard", "onboarding", "new hire", "new employee", 
         "employee setup", "hire someone", "add employee"
     ]):
+        print("Onboarding detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -170,6 +171,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "update employee", "change employee", "modify employee",
         "edit employee", "update onboarding"
     ]):
+        print("Onboarding update detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -187,6 +189,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "check employee", "employee completion", "profile completion",
         "onboarding status"
     ]):
+        print("Onboarding progress check detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -200,6 +203,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Task creation heuristics
     if any(keyword in lower_q for keyword in ["create task", "new task", "add task", "task:", "i need to", "implement", "fix bug"]):
+        print("Task creation detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -213,6 +217,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Check for summarization BEFORE deadline/risk to avoid misrouting
     if any(keyword in lower_q for keyword in ["summary", "summarize", "condense"]):
+        print("Document summarization detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -247,6 +252,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Deadline monitoring
     if any(keyword in lower_q for keyword in ["deadline", "due date", "risk", "slip"]):
+        print("Deadline monitoring detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -260,6 +266,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Meeting follow-up
     if any(keyword in lower_q for keyword in ["follow-up", "followup", "action item", "minutes"]):
+        print("Meeting follow-up detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -273,6 +280,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Task dependencies
     if any(keyword in lower_q for keyword in ["dependency", "depends on", "blocked by", "analyze dependencies"]):
+        print("Task dependency analysis detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -286,6 +294,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Email priority
     if any(keyword in lower_q for keyword in ["email", "inbox", "priority"]):
+        print("Email priority detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -297,10 +306,27 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
-   
-    # Progress accountability agent – detailed routing
-    # Track general progress
-    if any(k in lower_q for k in ["progress", "task status"]):
+    # Conflict resolution
+    if any(keyword in lower_q for keyword in [
+        "conflict", "dispute", "disagreement", "argument", 
+        "resolve conflict", "mediate", "mediation", "team conflict",
+        "interpersonal", "communication issue"
+    ]):
+        print("Conflict resolution detected in query.")
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="conflict_resolver_agent",
+                    intent="conflict.resolve",
+                    input_source="user_query",
+                )
+            ]
+        )
+    
+    # Progress tracking
+    if any(keyword in lower_q for keyword in ["progress", "goal", "task status"]):
+        print("Progress tracking detected in query.")
         return Plan(
             steps=[
                 PlanStep(
@@ -575,6 +601,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     user_prompt = json.dumps(user_payload, indent=2)
 
     try:
+        print("Inside LLM planning function.")
         response = client.chat.completions.create(
             model=OPENROUTER_MODEL,
             messages=[

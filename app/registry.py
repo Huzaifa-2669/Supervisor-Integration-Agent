@@ -181,6 +181,15 @@ def load_registry() -> List[AgentMetadata]:
             healthcheck="https://document-reviewer-agent.onrender.com/health",
             timeout_ms=60000,
         ),
+        AgentMetadata(
+            name="conflict_resolver_agent",
+            description="An empathetic expert conflict mediator that analyzes conflict scenarios and provides calm, objective analysis with 3 actionable steps to resolve conflicts using Non-Violent Communication techniques.",
+            intents=["conflict.resolve", "conflict.mediate", "resolve_conflict", "mediate_conflict"],
+            type="http",
+            endpoint="https://conflict-resolver-agent.onrender.com/api/resolve",
+            healthcheck="https://conflict-resolver-agent.onrender.com/health",
+            timeout_ms=30000,
+        ),
     ]
 
 
