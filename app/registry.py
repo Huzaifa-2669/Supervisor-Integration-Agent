@@ -14,11 +14,22 @@ def load_registry() -> List[AgentMetadata]:
     return [
         AgentMetadata(
             name="progress_accountability_agent",
-            description="Tracks goals, tasks, and progress to provide accountability insights.",
-            intents=["progress.track"],
+            description="Comprehensive progress tracking and accountability agent. Tracks goals, tasks, and progress. Analyzes reflections to detect patterns, trends, and anomalies. Generates productivity reports with personalized insights. Supports creating goals from natural language, updating goal progress, adding reflections, and providing accountability summaries. Use for any goal-setting, progress tracking, reflection analysis, or productivity monitoring needs.",
+            intents=[
+                "progress.track",           # Get accountability payload
+                "progress.accountability",  # Alias for accountability
+                "goal.create",              # Create a new goal
+                "goal.update",              # Update goal progress
+                "reflection.add",           # Add a reflection
+                "reflection.analyze",       # Analyze reflections for patterns
+                "productivity.report",      # Generate productivity report
+                "productivity.insights",    # Get personalized insights
+                "productivity.freeform",    # Natural language message handling
+            ],
             type="http",
-            endpoint="https://example.com/progress/handle",
-            healthcheck="https://example.com/progress/health",
+            endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
+            healthcheck="https://spm-agent-api-production.up.railway.app/health",
+            timeout_ms=30000,
         ),
         AgentMetadata(
             name="email_priority_agent",
@@ -81,24 +92,6 @@ def load_registry() -> List[AgentMetadata]:
             healthcheck="https://task-dependency-agent.vercel.app/health",
             timeout_ms=30000,
         ),
-        AgentMetadata(
-            name="productivity_agent",
-            description="Analyzes reflections, tracks goals, generates insights, detects trends, and produces productivity reports.",
-            intents=[
-                "productivity.analyze",       # /analysis
-                "productivity.report",        # /report
-                "goal.create",                # /goals (POST)
-                "goal.update",                # /goals/<id>/progress
-                "reflection.add",             # /reflections
-                "productivity.insights",      # /insights
-                "productivity.accountability" # /accountability
-            ],
-            type="http",
-            endpoint="https://spm-agent-api-production.up.railway.app/agent/json",
-            healthcheck="https://spm-agent-api-production.up.railway.app/health",
-            timeout_ms=30000,
-        ),
-
         AgentMetadata(
             name="deadline_guardian_agent",
             description="AI-powered deadline monitoring with dependency analysis. Identifies cascading risks, bottlenecks, and blocked tasks using Google Gemini Flash 2.0. Provides strategic recommendations for clearing bottlenecks and managing overdue tasks.",

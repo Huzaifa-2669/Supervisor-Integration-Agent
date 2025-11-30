@@ -74,6 +74,31 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     # unavailable, we declare out of scope (no steps).
     lower_q = query.lower()
     
+    if "progress_accountability_agent" in lower_q or "progress accountability agent" in lower_q:
+        # Determine specific intent based on content
+        if any(k in lower_q for k in ["goal", "complete", "finish", "achieve", "want to", "plan to", "aim to"]):
+            intent = "goal.create"
+        elif any(k in lower_q for k in ["reflection", "journal", "today i", "i felt"]):
+            intent = "reflection.add"
+        elif any(k in lower_q for k in ["insight"]):
+            intent = "productivity.insights"
+        elif any(k in lower_q for k in ["report"]):
+            intent = "productivity.report"
+        elif any(k in lower_q for k in ["analyze"]):
+            intent = "reflection.analyze"
+        else:
+            intent = "progress.track"
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="progress_accountability_agent",
+                    intent=intent,
+                    input_source="user_query",
+                )
+            ]
+        )
+    
     if any(keyword in lower_q for keyword in [
         "start focus mode", "turn on focus", "enable focus", "focus mode on",
         "start monitoring", "start focus", "begin monitoring", "track my focus",
@@ -285,7 +310,8 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
     
     # Email priority
-    if any(keyword in lower_q for keyword in ["email", "inbox", "priority"]):
+    if any(keyword in lower_q for keyword in ["email", "inbox"]) or \
+       ("priority" in lower_q and "email" in lower_q):
         return Plan(
             steps=[
                 PlanStep(
@@ -389,14 +415,17 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
-    # Productivity agent – detailed routing
-    # Create goal
-    if any(k in lower_q for k in ["create goal", "new goal", "add goal"]):
+    # Goal creation - natural language goal setting
+    if any(k in lower_q for k in [
+        "i want to complete", "i want to finish", "i need to", "my goal is",
+        "set a goal", "create goal", "new goal", "add goal", "set goal",
+        "i plan to", "i'm planning to", "i aim to", "target is"
+    ]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="goal.create",
                     input_source="user_query",
                 )
@@ -404,12 +433,15 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
 
     # Update goal progress
-    if any(k in lower_q for k in ["update goal", "goal progress", "progress update"]):
+    if any(k in lower_q for k in [
+        "update goal", "goal progress", "progress update", "completed goal",
+        "finished goal", "mark goal", "goal status"
+    ]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="goal.update",
                     input_source="user_query",
                 )
@@ -417,72 +449,101 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
 
     # Add reflection / journaling
-    if any(k in lower_q for k in ["add reflection", "journal", "daily log", "reflection", "wrote"]):
+    if any(k in lower_q for k in [
+        "add reflection", "journal", "daily log", "reflection", "wrote today",
+        "today i", "i felt", "i struggled", "i completed", "my day was",
+        "log my", "record my", "note that i"
+    ]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="reflection.add",
                     input_source="user_query",
                 )
             ]
         )
 
-    # Insights
-    if "insight" in lower_q:
+    # Analyze reflections
+    if any(k in lower_q for k in [
+        "analyze reflection", "reflection pattern", "reflection trend",
+        "review reflections", "my patterns", "behavioral pattern"
+    ]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
+                    intent="reflection.analyze",
+                    input_source="user_query",
+                )
+            ]
+        )
+
+    # Insights
+    if any(k in lower_q for k in [
+        "insight", "productivity insight", "personalized insight",
+        "give me insight", "my insights"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="progress_accountability_agent",
                     intent="productivity.insights",
                     input_source="user_query",
                 )
             ]
         )
 
-    # Accountability
-    if "accountability" in lower_q:
+    # Accountability check
+    if any(k in lower_q for k in [
+        "accountability", "hold me accountable", "am i on track",
+        "check my accountability", "accountability status"
+    ]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
-                    intent="productivity.accountability",
-                    input_source="user_query",
-                )
-            ]
-        )
-
-    # General analysis (default intent)
-    if any(k in lower_q for k in ["analysis", "analyze", "trend", "pattern"]):
-        return Plan(
-            steps=[
-                PlanStep(
-                    step_id=0,
-                    agent="productivity_agent",
-                    intent="productivity.analyze",
+                    agent="progress_accountability_agent",
+                    intent="progress.accountability",
                     input_source="user_query",
                 )
             ]
         )
 
     # Report generation
-    if "report" in lower_q:
+    if any(k in lower_q for k in [
+        "productivity report", "generate report", "my report",
+        "weekly report", "progress report"
+    ]):
         return Plan(
             steps=[
                 PlanStep(
                     step_id=0,
-                    agent="productivity_agent",
+                    agent="progress_accountability_agent",
                     intent="productivity.report",
                     input_source="user_query",
                 )
             ]
         )
 
-    
-    
+    # General progress tracking (catch-all for progress/goal queries)
+    if any(k in lower_q for k in [
+        "progress", "my goals", "show goals", "goal", "how am i doing",
+        "my progress", "track progress", "show my progress"
+    ]):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="progress_accountability_agent",
+                    intent="progress.track",
+                    input_source="user_query",
+                )
+            ]
+        )
 
     client = _get_openrouter_client()
     if client is None:
