@@ -588,7 +588,26 @@ def render_home() -> HTMLResponse:
                 setUsedAgents(data.used_agents || []);
                 setIntermediate(data.intermediate_results || {});
                 setError(data.error);
-                setMessages((prev) => [...prev, { role: 'assistant', content: data.answer || 'No answer produced.' }]);
+                
+                const files = [];
+                if (data.intermediate_results) {
+                  Object.values(data.intermediate_results).forEach(step => {
+                    // Check for file_output in details (Hiring Agent style)
+                    if (step.output && step.output.details && step.output.details.file_output) {
+                      files.push(step.output.details.file_output);
+                    }
+                    // Check for file_output in details.summary (Report Generator style if different)
+                    else if (step.output && step.output.details && step.output.details.summary && step.output.details.summary.file_output) {
+                       files.push(step.output.details.summary.file_output);
+                    }
+                  });
+                }
+
+                setMessages((prev) => [...prev, { 
+                  role: 'assistant', 
+                  content: data.answer || 'No answer produced.',
+                  files: files
+                }]);
                 setUploadedFiles([]);
                 setFileName('');
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -600,100 +619,61 @@ def render_home() -> HTMLResponse:
             };
 
             const handleFileUpload = (e) => {
-              const file = e.target.files[0];
-              if (!file) return;
+              const files = Array.from(e.target.files);
+              if (!files.length) return;
 
-              setFileName(file.name);
-              setStatus('Reading file...');
+              setStatus(`Reading ${files.length} file(s)...`);
+              setFileName(files.length === 1 ? files[0].name : `${files.length} files attached`);
 
-              const isTextFile = file.type.startsWith('text/') ||
-                                 file.name.endsWith('.txt') ||
-                                 file.name.endsWith('.md') ||
-                                 file.name.endsWith('.json') ||
-                                 file.name.endsWith('.csv') ||
-                                 file.name.endsWith('.log');
-
-              const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-              const isDOCX = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                            file.name.endsWith('.docx');
-              const isMP3 = file.type === 'audio/mpeg' || file.name.endsWith('.mp3');
-              
-              const reader = new FileReader();
-              
-              reader.onerror = () => {
-                setStatus('');
-                setError({ message: 'Failed to read file', type: 'file_error' });
-                setFileName('');
-                setUploadedFiles([]);
-              };
-              
-              if (isTextFile) {
-                reader.onload = (event) => {
-                  const fileContent = event.target.result;
-                  if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
-                    setInput(`Summarize this document:
-
-${fileContent}`);
-                  } else {
-                    setInput(`${input}
-
---- Document Content ---
-
-${fileContent}`);
-                  }
-                  setStatus('');
-                  setUploadedFiles([]);
-                };
-                reader.readAsText(file);
-              } else if (isPDF || isDOCX) {
+              const promises = files.map(file => new Promise((resolve, reject) => {
+                const reader = new FileReader();
                 reader.onload = (event) => {
                   const dataUrl = event.target.result;
-                  const base64 = dataUrl.split(',')[1];
-                  const mimeType = isPDF ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                  // Handle both data:URL and raw base64 if that ever happens (FileReader usually returns data:URL)
+                  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+                  
+                  // Simple mime type detection fallback
+                  let mimeType = file.type;
+                  if (!mimeType) {
+                     if (file.name.endsWith('.pdf')) mimeType = 'application/pdf';
+                     else if (file.name.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                     else if (file.name.endsWith('.txt')) mimeType = 'text/plain';
+                     else if (file.name.endsWith('.md')) mimeType = 'text/markdown';
+                     else mimeType = 'application/octet-stream';
+                  }
 
-                  setUploadedFiles([{
+                  resolve({
                     base64_data: base64,
                     filename: file.name,
                     mime_type: mimeType
-                  }]);
+                  });
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              }));
 
+              Promise.all(promises)
+                .then(newFiles => {
+                  setUploadedFiles(newFiles);
+                  
+                  // Auto-populate input if empty, but don't overwrite if user is typing a job role
                   if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
-                    setInput('Summarize the attached document');
-                  } else if (!input.toLowerCase().includes('summarize') && !input.toLowerCase().includes('document')) {
-                    setInput(`${input}
-
-Summarize the attached document`);
+                     if (newFiles.length === 1 && (newFiles[0].filename.endsWith('.mp3'))) {
+                        setInput('Extract meeting minutes and action items from this audio recording');
+                     } else {
+                        // Generic prompt, user can overwrite for "process workflow"
+                        setInput('Summarize the attached document(s)');
+                     }
                   }
                   setStatus('');
-                };
-                reader.readAsDataURL(file);
-              } else if (isMP3) {
-                reader.onload = (event) => {
-                  const dataUrl = event.target.result;
-                  const base64 = dataUrl.split(',')[1];
-
-                  setUploadedFiles([{
-                    base64_data: base64,
-                    filename: file.name,
-                    mime_type: 'audio/mpeg'
-                  }]);
-
-                  if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
-                    setInput('Extract meeting minutes and action items from this audio recording');
-                  } else if (!input.toLowerCase().includes('meeting') && !input.toLowerCase().includes('minutes')) {
-                    setInput(`${input}
-
-Extract meeting minutes from the audio file`);
-                  }
+                })
+                .catch(err => {
+                  console.error(err);
                   setStatus('');
-                };
-                reader.readAsDataURL(file);
-              } else {
-                setStatus('');
-                setError({ message: `File type ${file.type || 'unknown'} not supported. Supported: text files, PDF, DOCX${isMeetingQuery ? ', MP3' : ''}.`, type: 'file_error' });
-                setFileName('');
-                setUploadedFiles([]);
-              }
+                  setError({ message: 'Failed to read files', type: 'file_error' });
+                  setFileName('');
+                  setUploadedFiles([]);
+                });
             };
 
             return (
@@ -724,6 +704,20 @@ Extract meeting minutes from the audio file`);
                       <div key={idx} className={`msg ${m.role}`}>
                         <strong style={{ display: 'block', marginBottom: 6, color: m.role === 'user' ? '#22d3ee' : '#cbd5e1' }}>{m.role === 'user' ? 'You' : 'Supervisor'}</strong>
                         {m.role === 'assistant' ? renderMarkdown(m.content) : m.content}
+                        {m.files && m.files.length > 0 && (
+                          <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                            {m.files.map((f, i) => (
+                              <div key={i} style={{ padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ fontSize: 20 }}>📄</div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.filename}</div>
+                                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Generated Document</div>
+                                </div>
+                                <a href={`data:${f.mime_type};base64,${f.data}`} download={f.filename} className="primary" style={{ padding: '6px 12px', textDecoration: 'none', fontSize: 13, display: 'inline-flex', alignItems: 'center' }}>Download</a>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {status && (
@@ -737,8 +731,8 @@ Extract meeting minutes from the audio file`);
                     <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." rows={3} />
                     <div style={{ display: 'grid', gap: 8 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".txt,.md,.json,.csv,.log,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
-                        <button type="button" className="file-trigger" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Attach file</button>
+                        <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} accept=".txt,.md,.json,.csv,.log,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
+                        <button type="button" className="file-trigger" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Attach file(s)</button>
                         {fileName && <span className="file-meta">Attached: {fileName}</span>}
                       </div>
                       <button className="primary" onClick={handleSend} style={{ padding: '12px 16px' }}>Send</button>
