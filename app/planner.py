@@ -66,13 +66,34 @@ def _get_openrouter_client():
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash-lite")
 
 
-def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Optional[List] = None) -> Plan:
+def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Optional[str] = None) -> Plan:
     """Ask an LLM to propose a tool plan; fall back to a safe default or out-of-scope."""
 
     # Heuristic routing for clear intents to reduce misclassification and avoid
     # calling unrelated agents. If none of the heuristics match and the LLM is
     # unavailable, we declare out of scope (no steps).
     lower_q = query.lower()
+
+    # Multi-intent: email prioritization + deadline risk in one request
+    email_keywords = ["email", "inbox", "priority", "prioritize", "prioritise", "triage"]
+    deadline_keywords = ["deadline", "due date", "slip", "risk"]
+    if any(k in lower_q for k in email_keywords) and any(k in lower_q for k in deadline_keywords):
+        return Plan(
+            steps=[
+                PlanStep(
+                    step_id=0,
+                    agent="email_priority_agent",
+                    intent="email.prioritize",
+                    input_source="user_query",
+                ),
+                PlanStep(
+                    step_id=1,
+                    agent="deadline_guardian_agent",
+                    intent="deadline.monitor",
+                    input_source="user_query",
+                ),
+            ]
+        )
     
     if any(keyword in lower_q for keyword in [
         "start focus mode", "turn on focus", "enable focus", "focus mode on",
@@ -183,9 +204,8 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     
     # Check employee progress/status
     if any(keyword in lower_q for keyword in [
-        "employee progress", "onboarding progress", "employee status",
-        "check employee", "employee completion", "profile completion",
-        "onboarding status"
+        "employee status", "check employee", "employee completion",
+        "profile completion", "onboarding status"
     ]):
         return Plan(
             steps=[
@@ -224,29 +244,8 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
-    # Budget risk queries - check BEFORE deadline to catch budget-related "risk" queries
-    # This prevents "risks for overspending" from going to deadline_guardian_agent
-    if any(phrase in lower_q for phrase in [
-        "overspending risk", "budget risk", "financial risk", "spending risk",
-        "risks for overspending", "risk of overspending", "overspending risks",
-        "budget risks", "financial risks", "spending risks",
-        "analyze risk", "analyze risks", "risks for", "risk for"
-    ]) and any(budget_term in lower_q for budget_term in [
-        "overspending", "spending", "budget", "financial", "expense", "cost"
-    ]):
-        return Plan(
-            steps=[
-                PlanStep(
-                    step_id=0,
-                    agent="budget_tracker_agent",
-                    intent="budget.question",
-                    input_source="user_query",
-                )
-            ]
-        )
-    
     # Deadline monitoring
-    if any(keyword in lower_q for keyword in ["deadline", "due date", "risk", "slip"]):
+    if any(keyword in lower_q for keyword in ["deadline", "due date", "slip", "risk"]):
         return Plan(
             steps=[
                 PlanStep(
@@ -285,7 +284,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         )
     
     # Email priority
-    if any(keyword in lower_q for keyword in ["email", "inbox", "priority"]):
+    if any(keyword in lower_q for keyword in ["email", "inbox", "priority", "prioritize", "prioritise", "triage"]):
         return Plan(
             steps=[
                 PlanStep(
@@ -317,7 +316,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
     if any(keyword in lower_q for keyword in [
         "calendar", "schedule", "meeting", "appointment", "event",
         "book", "available", "free time", "conflict", "reschedule",
-        "cancel", "delete", "update", "change", "move"
+        "cancel", "delete", "move"
     ]):
         
         # Create/Schedule Meeting
@@ -355,7 +354,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         
         # Update/Modify/Reschedule Meeting
         elif any(k in lower_q for k in [
-            "update", "modify", "change", "edit", "reschedule",
+            "edit", "reschedule",
             "move", "shift", "postpone", "bring forward"
         ]):
             return Plan(
@@ -412,8 +411,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
                     )
                 ]
             )
-    # Budget tracking and analysis - comprehensive keyword matching
-    # Note: Budget risk phrases are checked above before deadline agent
+    # Budget tracking keyword matching
     budget_keywords = [
         # Core budget terms
         "budget", "budgets", "budgeting", "budgeted",
@@ -440,12 +438,6 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         # Forecast/prediction terms
         "forecast", "forecasts", "forecasting", "forecasted",
         "predict", "predicts", "prediction", "predictions", "predicting", "predicted",
-        # Analysis terms
-        "analyze", "analyzes", "analysis", "analyses", "analyzing", "analyzed",
-        "analytics", "analytical",
-        # Report terms
-        "report", "reports", "reporting", "reported",
-        "summary", "summaries", "summarize", "summarizing", "summarized",
         # Recommendation terms
         "recommend", "recommends", "recommendation", "recommendations", "recommending", "recommended",
         "suggestion", "suggestions", "suggest", "suggests", "suggesting", "suggested",
@@ -557,32 +549,6 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
 
-    # General analysis
-    if any(k in lower_q for k in ["analysis", "analyze", "trend", "pattern"]):
-        return Plan(
-            steps=[
-                PlanStep(
-                    step_id=0,
-                    agent="progress_accountability_agent",
-                    intent="productivity.analyze",
-                    input_source="user_query",
-                )
-            ]
-        )
-
-    # Report generation
-    if "report" in lower_q:
-        return Plan(
-            steps=[
-                PlanStep(
-                    step_id=0,
-                    agent="progress_accountability_agent",
-                    intent="productivity.report",
-                    input_source="user_query",
-                )
-            ]
-        )
-
     # Document review detection
     if any(keyword in lower_q for keyword in [
         "review document", "check spelling", "grammar check", "compliance check",
@@ -608,8 +574,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "hire", "hiring", "recruit", "screening",
         "match skill", "skill match", "evaluate candidate",
         "score candidate", "rank candidate", "compare candidate",
-        "bias", "fairness", "discrimination",
-        "hiring report", "recruitment report"
+        "bias", "fairness", "discrimination"
     ]):
         # Determine specific intent based on query
         if any(kw in lower_q for kw in ["workflow", "process", "end to end", "full cycle", "complete hiring"]):
@@ -624,8 +589,6 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             intent = "hiring.rank_candidates"
         elif any(kw in lower_q for kw in ["bias", "fair", "discrimination", "equity"]):
             intent = "hiring.check_bias"
-        elif any(kw in lower_q for kw in ["report", "summary", "analysis"]):
-            intent = "hiring.generate_report"
         else:
             intent = "hiring.match_skills"  # Default to skill matching
         
@@ -674,7 +637,7 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "available_agents": agents_summary,
     }
     if history:
-        user_payload["recent_history"] = history
+        user_payload["history_summary"] = history
     user_prompt = json.dumps(user_payload, indent=2)
 
     try:

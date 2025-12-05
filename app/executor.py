@@ -13,7 +13,8 @@ except ImportError:
     httpx = None
 
 from .agent_caller import call_agent
-from .models import AgentMetadata, AgentRequest, AgentResponse, ErrorModel, Plan, UsedAgentEntry
+from .combine import combine_tool_outputs
+from .models import AgentMetadata, AgentRequest, AgentResponse, CombinedAnswerRequest, CombinedAnswerResponse, ErrorModel, Plan, UsedAgentEntry
 from .registry import find_agent_by_name
 
 
@@ -43,8 +44,8 @@ async def execute_plan(
     plan: Plan,
     registry: List[AgentMetadata],
     context: Dict[str, Any],
-) -> Tuple[Dict[int, AgentResponse], List[UsedAgentEntry]]:
-    """Execute each planned step in order and capture responses."""
+) -> Tuple[Dict[int, AgentResponse], List[UsedAgentEntry], CombinedAnswerResponse]:
+    """Execute each planned step in order, then combine outputs when multiple agents are used."""
     step_outputs: Dict[int, AgentResponse] = {}
     used_agents: List[UsedAgentEntry] = []
 
@@ -89,4 +90,27 @@ async def execute_plan(
                 # TDA call failed, continue without blocking
                 pass
 
-    return step_outputs, used_agents
+    # Combine outputs when multiple distinct agents were used
+    distinct_agents = {ua.name for ua in used_agents}
+    combined = None
+    if len(distinct_agents) >= 2:
+        tool_outputs = []
+        for resp in step_outputs.values():
+            entry = {
+                "agent": resp.agent_name,
+                "status": resp.status,
+                "result": resp.output.result if resp.output else None,
+                "details": resp.output.details if resp.output else None,
+                "error": resp.error.message if resp.error else None,
+            }
+            tool_outputs.append(entry)
+        combine_req = CombinedAnswerRequest(
+            user_query=query,
+            tool_outputs=tool_outputs,
+            history_summary=context.get("history_summary"),
+        )
+        combined = combine_tool_outputs(combine_req)
+    else:
+        combined = CombinedAnswerResponse(combined_answer="")
+
+    return step_outputs, used_agents, combined

@@ -82,6 +82,18 @@ STYLES = """
             flex-direction: column;
             gap: 16px;
           }
+          .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(34,211,238,0.14);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 12px;
+            border: 1px solid rgba(34,211,238,0.3);
+          }
           .chat-feed {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -504,6 +516,7 @@ def render_home() -> HTMLResponse:
             const [intermediate, setIntermediate] = useState({});
             const [status, setStatus] = useState('');
             const [error, setError] = useState(null);
+            const [lastCombined, setLastCombined] = useState(false);
             const [openIntermediate, setOpenIntermediate] = useState(false);
             const [fileName, setFileName] = useState('');
             const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -550,6 +563,7 @@ def render_home() -> HTMLResponse:
               setUsedAgents([]);
               setIntermediate({});
               setError(null);
+              setLastCombined(false);
               setFileName('');
               setUploadedFiles([]);
             };
@@ -585,9 +599,13 @@ def render_home() -> HTMLResponse:
                 });
                 const data = await resp.json();
                 setStatus('');
-                setUsedAgents(data.used_agents || []);
+                const nextUsed = data.used_agents || [];
+                setUsedAgents(nextUsed);
                 setIntermediate(data.intermediate_results || {});
                 setError(data.error);
+                const distinct = Array.from(new Set(nextUsed.map(a => a.name)));
+                const wasCombined = distinct.length >= 2;
+                setLastCombined(wasCombined);
                 
                 const files = [];
                 if (data.intermediate_results) {
@@ -606,7 +624,8 @@ def render_home() -> HTMLResponse:
                 setMessages((prev) => [...prev, { 
                   role: 'assistant', 
                   content: data.answer || 'No answer produced.',
-                  files: files
+                  files: files,
+                  combined: wasCombined
                 }]);
                 setUploadedFiles([]);
                 setFileName('');
@@ -703,6 +722,9 @@ def render_home() -> HTMLResponse:
                     {messages.map((m, idx) => (
                       <div key={idx} className={`msg ${m.role}`}>
                         <strong style={{ display: 'block', marginBottom: 6, color: m.role === 'user' ? '#22d3ee' : '#cbd5e1' }}>{m.role === 'user' ? 'You' : 'Supervisor'}</strong>
+                        {m.role === 'assistant' && m.combined && (
+                          <div className="pill" style={{ marginBottom: 8 }}>Combined multi-agent answer</div>
+                        )}
                         {m.role === 'assistant' ? renderMarkdown(m.content) : m.content}
                         {m.files && m.files.length > 0 && (
                           <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>

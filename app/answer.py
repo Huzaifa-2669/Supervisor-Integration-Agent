@@ -19,7 +19,7 @@ from .models import AgentResponse
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash-lite")
 
 
-def compose_final_answer(query: str, step_outputs: Dict[int, AgentResponse], history: Optional[List] = None) -> str:
+def compose_final_answer(query: str, step_outputs: Dict[int, AgentResponse], history: Optional[str] = None) -> str:
     """Convert tool outputs into a concise answer."""
     # If no steps were executed, treat as out-of-scope.
     if not step_outputs:
@@ -69,7 +69,7 @@ def compose_final_answer(query: str, step_outputs: Dict[int, AgentResponse], his
     )
     user_payload = {"user_query": query, "tool_outputs": tool_findings}
     if history:
-        user_payload["recent_history"] = history
+        user_payload["history_summary"] = history
     user_prompt = json.dumps(user_payload, indent=2)
 
     try:

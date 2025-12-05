@@ -109,3 +109,17 @@ class SupervisorResponse(BaseModel):
     used_agents: List[UsedAgentEntry]
     intermediate_results: Dict[str, Any]
     error: Optional[ErrorModel] = None
+
+
+class CombinedAnswerRequest(BaseModel):
+    """Payload for combining multiple agent responses into a single answer."""
+
+    user_query: str
+    tool_outputs: List[Dict[str, Any]]
+    history_summary: Optional[str] = None
+
+
+class CombinedAnswerResponse(BaseModel):
+    """LLM combine output with a fallback summary."""
+
+    combined_answer: str

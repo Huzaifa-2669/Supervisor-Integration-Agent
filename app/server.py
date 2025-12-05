@@ -20,6 +20,7 @@ except ImportError:
 
 from .answer import compose_final_answer
 from .conversation import append_turn, get_history
+from .history import summarize_history
 from .executor import execute_plan
 from .general import handle_general_query
 from .file_utils import normalize_file_uploads
@@ -84,6 +85,7 @@ def build_app() -> FastAPI:
         registry = load_registry()
         conversation_id = payload.conversation_id or str(uuid.uuid4())
         history = get_history(conversation_id)
+        history_summary = summarize_history(history)
 
         # Normalize file uploads: prefer structured field, fallback to query text parsing
         structured_uploads = None
@@ -119,7 +121,7 @@ def build_app() -> FastAPI:
                 error=None,
             )
 
-        plan = plan_tools_with_llm(query_text, registry, history=history)
+        plan = plan_tools_with_llm(query_text, registry, history=history_summary)
 
         # Normalize context values to strings to satisfy downstream agents.
         context = {
@@ -127,9 +129,18 @@ def build_app() -> FastAPI:
             "conversation_id": conversation_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "file_uploads": file_uploads,  # Pass file uploads to executor
+            "history_summary": history_summary,
         }
+        # Log context summary without dumping base64 data
+        logger.info(
+            "Request context: user=%s conversation=%s files=%d history_summary=%s",
+            context["user_id"],
+            context["conversation_id"],
+            len(context["file_uploads"] or []),
+            (history_summary[:160] + "...") if history_summary and len(history_summary) > 160 else history_summary,
+        )
 
-        step_outputs, used_agents = await execute_plan(query_text, plan, registry, context)
+        step_outputs, used_agents, combined = await execute_plan(query_text, plan, registry, context)
         # Post-process task dependency output to produce user-friendly names instead of raw JSON.
         async def summarize_dependencies(step_outputs_map: Dict[int, AgentResponse]) -> None:
             dep_responses = [
@@ -202,7 +213,11 @@ def build_app() -> FastAPI:
 
         await summarize_dependencies(step_outputs)
 
-        answer = compose_final_answer(payload.query, step_outputs, history=history)
+        # If multiple agents used, prefer combined answer; otherwise use standard synthesis.
+        if combined and combined.combined_answer:
+            answer = combined.combined_answer
+        else:
+            answer = compose_final_answer(payload.query, step_outputs, history=history_summary)
 
         intermediate_results = {f"step_{sid}": step_outputs[sid].dict() for sid in step_outputs}
 

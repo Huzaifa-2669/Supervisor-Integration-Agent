@@ -124,6 +124,7 @@ def load_registry() -> List[AgentMetadata]:
             healthcheck="https://conflict-resolver-agent.onrender.com/health",
             timeout_ms=30000,
         ),
+        AgentMetadata(
             name="focus_enforcer_agent",
             description="Monitors user focus and productivity by analyzing window activity. Uses LLM to calculate focus scores based on productive vs distraction keywords, determines if user is FOCUSED or DISTRACTED, and generates supervisor commands for interventions (notifications or strict popups). Requires activity history data with window titles.",
             intents=[
