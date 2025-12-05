@@ -171,6 +171,7 @@ def load_registry() -> List[AgentMetadata]:
                 "hiring.rank_candidates",
                 "hiring.check_bias",
                 "hiring.generate_report",
+                "hiring.process_workflow",
                 "resume.parse",
                 "candidate.evaluate",
                 "candidate.score",
@@ -179,7 +180,7 @@ def load_registry() -> List[AgentMetadata]:
             type="http",
             endpoint=f"https://hiring-screener-agent-sre.onrender.com/supervisor/task",
             healthcheck="https://hiring-screener-agent-sre.onrender.com/health",
-            timeout_ms=30000,
+            timeout_ms=240000,
         ),
         # Document Reviewer Agent.
         AgentMetadata(

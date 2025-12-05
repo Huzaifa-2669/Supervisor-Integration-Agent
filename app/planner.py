@@ -612,7 +612,9 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "hiring report", "recruitment report"
     ]):
         # Determine specific intent based on query
-        if any(kw in lower_q for kw in ["parse", "extract", "cv", "resume text"]):
+        if any(kw in lower_q for kw in ["workflow", "process", "end to end", "full cycle", "complete hiring"]):
+            intent = "hiring.process_workflow"
+        elif any(kw in lower_q for kw in ["parse", "extract", "cv", "resume text"]):
             intent = "hiring.parse_resume"
         elif any(kw in lower_q for kw in ["match", "skill", "requirement", "job description"]):
             intent = "hiring.match_skills"
@@ -664,7 +666,8 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
         "- Use 'hiring.score_candidate' for evaluating candidate fitness based on multiple factors\n"
         "- Use 'hiring.rank_candidates' for ranking multiple candidates\n"
         "- Use 'hiring.check_bias' for detecting potential bias in hiring decisions\n"
-        "- Use 'hiring.generate_report' for creating comprehensive hiring reports"
+        "- Use 'hiring.generate_report' for creating comprehensive hiring reports\n"
+        "- Use 'hiring.process_workflow' for end-to-end processing (parse -> match -> score -> rank -> bias -> report)"
     )
     user_payload = {
         "user_query": query,

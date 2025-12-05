@@ -50,6 +50,7 @@ async def call_agent(
             metadata["file_base64"] = base64_data
             metadata["mime_type"] = first_file.get("mime_type", "application/octet-stream")
             metadata["filename"] = first_file.get("filename", "uploaded_file")
+            
             # Debug logging
             import logging
             logger = logging.getLogger(__name__)
@@ -58,6 +59,16 @@ async def call_agent(
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"File upload found but base64_data is empty for {agent_meta.name}")
+            
+        # Add support for multiple files in metadata
+        metadata["files"] = []
+        for f in file_uploads:
+             if f.get("base64_data"):
+                 metadata["files"].append({
+                     "base64_data": f.get("base64_data"),
+                     "mime_type": f.get("mime_type", "application/octet-stream"),
+                     "filename": f.get("filename", "uploaded_file")
+                 })
     else:
         import logging
         logger = logging.getLogger(__name__)
