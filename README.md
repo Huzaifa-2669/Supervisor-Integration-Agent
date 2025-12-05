@@ -1,65 +1,75 @@
-# Project Info: Multi-Agent Supervisor Web App
+# Supervisor Multi-Agent Web App
 
-This file captures the original system prompt describing what we are building and how we are building it.
+A FastAPI + React demo where a supervisor LLM plans and orchestrates worker agents, combines their outputs, and returns a unified answer. Conversation history is summarized before use, and multi-intent queries are handled by running multiple agents then LLM-combining the results.
 
-## What We Are Building
+## Why this project exists
+- Users often ask for more than one action in a single query (e.g., prioritize emails and check deadline risks). We detect multi-intent cases, run the needed agents, and synthesize a combined answer instead of stopping after the first tool.
+- Conversations can get long; we auto-summarize recent turns and pass the summary instead of the full transcript to keep context lean.
+- The UI surfaces agent calls and intermediate payloads so you can see what happened behind the scenes.
 
-- A web application with a Supervisor LLM that receives user queries, selects worker agents (tools), orchestrates them, and returns a unified answer.
-- Worker agents expose a common JSON handshake and can be HTTP or CLI services.
-- A minimal frontend sends queries and can show debug info (agents called and intermediate results).
+## Capabilities
+- LLM planner with heuristics + OpenRouter fallback to select agents and intents.
+- Multi-agent execution: when multiple distinct agents are planned, all are called and an LLM combines their outputs; partial failures are noted.
+- History summarization before planning/answering; summary is also forwarded to agents via context.
+- Agent registry with HTTP endpoints, timeouts, and health checks.
+- Debuggable UI: chat view, agent timeline, intermediate payloads, file attachment support, and a badge on combined multi-agent answers.
+- Task visualizations: `/agents` orbit view and `/tasks` dashboard (pulls from KnowledgeBaseBuilder backend).
 
-## Architecture (From the Prompt)
+## Architecture (high level)
+- Backend: FastAPI (see `main.py`, `app/server.py`), modular app package (`planner`, `executor`, `agent_caller`, `answer`, `combine`, `registry`, `models`, `web`).
+- Frontend: React via CDN, served from `/` (see `app/web.py`).
+- LLM: OpenRouter API (default model `google/gemini-2.5-flash-lite`) via `OPENROUTER_API_KEY`.
+- Data: in-memory conversation history and registry; no DB required for supervisor.
 
-- Language: Python 3, Framework: FastAPI, Server: Uvicorn.
-- Frontend: simple HTML/JS (now React) via FastAPI route; fetch POST to `/api/query`.
-- LLM: OpenRouter API with Google Gemini (env `OPENROUTER_API_KEY`).
-- Data: in-memory/JSON agent registry; no DB required.
-- Single entrypoint (`main.py`) wiring to modular app package.
-
-## Agent Registry
-
-- Each agent has `name`, `description`, `intents`, `type` (http/cli), and connection details (`endpoint` or `command`, `healthcheck`, `timeout_ms`).
-- Used for both LLM planning (capability briefing) and actual invocation.
-
-## JSON Contracts
-
-- Frontend → Supervisor (`/api/query`): `{ query, user_id?, options { debug }, conversation_id? }`.
-- Supervisor → Worker (request): `{ request_id, agent_name, intent, input { text, metadata }, context { user_id, conversation_id?, timestamp } }`.
-- Worker → Supervisor (response): success `{ request_id, agent_name, status: success, output { result, confidence?, details? }, error: null }`; error `{ status: error, output: null, error { type, message } }`.
+## Data contracts
+- Frontend → Supervisor (`POST /api/query`): `{ query, user_id?, conversation_id?, options { debug }, file_uploads? }`.
+- Supervisor → Worker: `{ request_id, agent_name, intent, input { text, metadata }, context { user_id, conversation_id, timestamp, history_summary, file_uploads? } }`.
+- Worker → Supervisor success: `{ status: "success", output { result, confidence?, details? }, error: null }`; error mirrors shape.
 - Supervisor → Frontend: `{ answer, used_agents[{ name, intent, status }], intermediate_results { step_n: full worker response }, error }`.
 
-## Supervisor Flow
+## Running the app
 
-1. Receive user query.
-2. Load registry.
-3. LLM planner selects agents/steps (plan with `step_id`, `agent`, `intent`, `input_source`).
-4. Execute plan: resolve inputs (user_query or prior step output), call agents, collect responses.
-5. Compose final answer via LLM (fallback stitching if unavailable).
-6. Return structured response; surface errors if planning/execution fails.
+### Prerequisites
+- Python 3.10+ (ensure `python`/`pip` are available)
+- Recommended: virtual environment
 
-## Planner Details
+### Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
-- Prompt includes user query and summarized agents (name/description/intents).
-- Expects JSON plan: `steps: [{ step_id, agent, intent, input_source }]` with `input_source` in {`user_query`, `step:X.output.result`}.
-- Fallback plan if LLM output invalid or key missing.
+### Configure environment
+Set your OpenRouter key (and optional model override):
+```bash
+export OPENROUTER_API_KEY="sk-or-v1-your-api-key"
+export OPENROUTER_MODEL="google/gemini-2.5-flash-lite"  # optional
+```
 
-## Agent Caller
+### Start the server
+```bash
+uvicorn main:app --reload
+```
+Open http://localhost:8000/ for the chat UI. Debug toggle shows agent calls and payloads; `/agents` lists the registry; `/tasks` shows the knowledge-base tasks view.
 
-- Builds handshake request and performs HTTP POST with timeout/error handling. httpx is required for real calls; if httpx is missing or the endpoint fails, the supervisor returns a structured error.
-- No built-in simulation is active; tests can monkeypatch `call_agent` to stub agents.
-- Validates responses; status is `success` or `error` with mutually exclusive output/error.
+## How it works (flow)
+1) Receive user query + optional files.  
+2) Summarize recent conversation turns.  
+3) Planner selects plan steps (heuristics first, then LLM if needed).  
+4) Executor runs each agent step, capturing outputs and structured errors.  
+5) If multiple distinct agents ran, an LLM combines their outputs; otherwise standard answer synthesis runs.  
+6) Response returns answer, used agents, and intermediate payloads to the UI.
 
-## Frontend Requirements
+## Notes for developers
+- Add agents in `app/registry.py` (name, intents, endpoint, timeout).  
+- Planner lives in `app/planner.py` (heuristics + OpenRouter).  
+- Agent calls and error handling live in `app/agent_caller.py`.  
+- Multi-agent combining is in `app/combine.py`; executor wires it in.  
+- History summarization is in `app/history.py`.  
+- UI tweaks live in `app/web.py`.
 
-- UI: textarea for query, debug checkbox, submit button.
-- Sends POST `/api/query`; displays answer and (when debug) `used_agents` and `intermediate_results`.
-- Routes: `GET /` (UI), `POST /api/query` (full flow), `GET /health` (status ok), optional `/agents` list.
-
-## Implementation Notes
-
-- Keep code clear and well-commented; educational intent.
-- Default behavior attempts real agent calls; if endpoints are unreachable or httpx is absent, errors are surfaced to the UI/tests. Use monkeypatching to simulate agents in tests.
-- Add new worker by updating registry and providing endpoint/command; planner auto-considers via description/intents.
+## Testing
+- Preferred: `pytest` (see `tests/` for planner and dependency formatting tests).  
+- You can monkeypatch `call_agent`/`plan_tools_with_llm` in tests to avoid live calls.
 
 ## Setup and Running
 
