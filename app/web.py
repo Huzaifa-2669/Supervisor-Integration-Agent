@@ -36,9 +36,9 @@ STYLES = """
             min-height: 100vh;
           }
           .shell {
-            max-width: 1100px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 48px 12px 100px;
+            padding: 56px 8px 110px;
             position: relative;
           }
           /* Ambient sparkles */
@@ -74,30 +74,30 @@ STYLES = """
             background: rgba(11,18,32,0.9);
             border: 1px solid var(--border);
             border-radius: 18px;
-            padding: 20px;
+            padding: 22px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.35);
           }
           .chat {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
           }
           .chat-feed {
             background: var(--panel);
             border: 1px solid var(--border);
             border-radius: 14px;
-            padding: 14px;
-            min-height: 320px;
-            max-height: 520px;
+            padding: 20px;
+            min-height: 75vh;
+            max-height: 85vh;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
           }
           .msg {
-            max-width: 80%;
-            padding: 12px 14px;
-            border-radius: 14px;
+            max-width: 82%;
+            padding: 14px 16px;
+            border-radius: 16px;
             background: var(--card);
             border: 1px solid var(--border);
             box-shadow: 0 10px 30px rgba(0,0,0,0.25);
@@ -113,24 +113,25 @@ STYLES = """
           }
           .input-bar {
             display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
-            align-items: center;
+            grid-template-columns: 1fr 200px;
+            gap: 14px;
+            align-items: start;
             background: var(--panel);
             border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 10px;
+            border-radius: 16px;
+            padding: 12px 14px;
           }
           textarea {
             width: 100%;
-            min-height: 140px;
+            min-height: 150px;
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 14px;
             color: var(--text);
-            padding: 14px;
+            padding: 16px;
             resize: vertical;
             font-size: 15px;
+            line-height: 1.6;
           }
           .controls {
             display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap;
@@ -153,7 +154,7 @@ STYLES = """
           .file-input:hover { border-color: var(--accent); transform: translateY(-1px); }
           .file-input::-webkit-file-upload-button { background: linear-gradient(120deg, #22d3ee, #22c55e); border: none; border-radius: 999px; padding: 8px 12px; color: #0b1220; font-weight: 700; cursor: pointer; }
           .file-meta { color: var(--muted); font-size: 13px; }
-          .file-trigger { background: var(--panel); border: 1px solid var(--border); padding: 10px 12px; border-radius: 12px; color: var(--text); cursor: pointer; transition: border 120ms ease, transform 120ms ease; text-align: center; }
+          .file-trigger { background: var(--panel); border: 1px solid var(--border); padding: 12px 14px; border-radius: 12px; color: var(--text); cursor: pointer; transition: border 120ms ease, transform 120ms ease; text-align: center; }
           .file-trigger:hover { border-color: var(--accent); transform: translateY(-1px); }
           button.primary {
             background: linear-gradient(120deg, #22d3ee, #22c55e);
@@ -506,6 +507,7 @@ def render_home() -> HTMLResponse:
             const [openIntermediate, setOpenIntermediate] = useState(false);
             const [fileName, setFileName] = useState('');
             const [uploadedFiles, setUploadedFiles] = useState([]);
+            const [isMeetingQuery, setIsMeetingQuery] = useState(false);
             const chatRef = React.useRef(null);
             const fileInputRef = React.useRef(null);
 
@@ -532,6 +534,13 @@ def render_home() -> HTMLResponse:
               fetch('/api/agents').then((r) => r.json()).then(setAgents).catch(() => setAgents([]));
               window.localStorage.setItem('conversationId', initialConv);
             }, []);
+
+            useEffect(() => {
+              const lowerInput = input.toLowerCase();
+              const meetingKeywords = ['meeting', 'minutes', 'follow-up', 'followup', 'action item', 'transcript', 'standup'];
+              const hasMeetingKeyword = meetingKeywords.some(keyword => lowerInput.includes(keyword));
+              setIsMeetingQuery(hasMeetingKeyword);
+            }, [input]);
 
             const resetConversation = () => {
               const next = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
@@ -582,6 +591,7 @@ def render_home() -> HTMLResponse:
                 setMessages((prev) => [...prev, { role: 'assistant', content: data.answer || 'No answer produced.' }]);
                 setUploadedFiles([]);
                 setFileName('');
+                if (fileInputRef.current) fileInputRef.current.value = '';
               } catch (err) {
                 setStatus('');
                 setError({ message: 'Network error', type: 'network_error' });
@@ -592,20 +602,21 @@ def render_home() -> HTMLResponse:
             const handleFileUpload = (e) => {
               const file = e.target.files[0];
               if (!file) return;
-              
+
               setFileName(file.name);
               setStatus('Reading file...');
-              
-              const isTextFile = file.type.startsWith('text/') || 
-                                 file.name.endsWith('.txt') || 
-                                 file.name.endsWith('.md') || 
-                                 file.name.endsWith('.json') || 
-                                 file.name.endsWith('.csv') || 
+
+              const isTextFile = file.type.startsWith('text/') ||
+                                 file.name.endsWith('.txt') ||
+                                 file.name.endsWith('.md') ||
+                                 file.name.endsWith('.json') ||
+                                 file.name.endsWith('.csv') ||
                                  file.name.endsWith('.log');
-              
+
               const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-              const isDOCX = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+              const isDOCX = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
                             file.name.endsWith('.docx');
+              const isMP3 = file.type === 'audio/mpeg' || file.name.endsWith('.mp3');
               
               const reader = new FileReader();
               
@@ -639,13 +650,13 @@ ${fileContent}`);
                   const dataUrl = event.target.result;
                   const base64 = dataUrl.split(',')[1];
                   const mimeType = isPDF ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                  
+
                   setUploadedFiles([{
                     base64_data: base64,
                     filename: file.name,
                     mime_type: mimeType
                   }]);
-                  
+
                   if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
                     setInput('Summarize the attached document');
                   } else if (!input.toLowerCase().includes('summarize') && !input.toLowerCase().includes('document')) {
@@ -656,9 +667,30 @@ Summarize the attached document`);
                   setStatus('');
                 };
                 reader.readAsDataURL(file);
+              } else if (isMP3) {
+                reader.onload = (event) => {
+                  const dataUrl = event.target.result;
+                  const base64 = dataUrl.split(',')[1];
+
+                  setUploadedFiles([{
+                    base64_data: base64,
+                    filename: file.name,
+                    mime_type: 'audio/mpeg'
+                  }]);
+
+                  if (!input.trim() || input === 'Summarize our project status and flag any deadline risks.') {
+                    setInput('Extract meeting minutes and action items from this audio recording');
+                  } else if (!input.toLowerCase().includes('meeting') && !input.toLowerCase().includes('minutes')) {
+                    setInput(`${input}
+
+Extract meeting minutes from the audio file`);
+                  }
+                  setStatus('');
+                };
+                reader.readAsDataURL(file);
               } else {
                 setStatus('');
-                setError({ message: `File type ${file.type || 'unknown'} not supported. Supported: text files, PDF, DOCX.`, type: 'file_error' });
+                setError({ message: `File type ${file.type || 'unknown'} not supported. Supported: text files, PDF, DOCX${isMeetingQuery ? ', MP3' : ''}.`, type: 'file_error' });
                 setFileName('');
                 setUploadedFiles([]);
               }
@@ -666,21 +698,25 @@ Summarize the attached document`);
 
             return (
               <div className="panel">
-                <div className="hero">
+                <div className="hero" style={{ gap: 6, alignItems: 'flex-start' }}>
                   <div className="badge">Supervisor · Multi-Agent Orchestrator</div>
                   <div>
-                    <h1 style={{ margin: '4px 0 6px' }}>Chat with the supervisor.</h1>
-                    <p className="small">Send messages, see responses, and inspect which worker agents were used per turn.</p>
+                    <h1 style={{ margin: '0 0 6px' }}>Chat with the supervisor.</h1>
+                    <p className="small" style={{ maxWidth: 720 }}>A focused chat workspace: ask your question, attach files, inspect agent calls, and keep the flow moving.</p>
                   </div>
                 </div>
 
                 <div className="chat">
-                  <div className="input-controls">
-                    <label className="switch">
-                      <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
-                      <span className="slider"></span>
-                      <span>Show debug</span>
-                    </label>
+                  <div className="input-controls" style={{ justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <label className="switch">
+                        <input type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
+                        <span className="slider"></span>
+                        <span>Show debug</span>
+                      </label>
+                      <span className="small" style={{ color: 'var(--muted)' }}>Tip: Keep requests concise; add context via file upload.</span>
+                    </div>
+                    {status && <span className="status"><span className="status-dot"></span>{status}</span>}
                   </div>
 
                   <div className="chat-feed" id="chat-feed" ref={chatRef}>
@@ -699,14 +735,16 @@ Summarize the attached document`);
 
                   <div className="input-bar">
                     <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." rows={3} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <button className="primary" onClick={handleSend} style={{ padding: '12px 18px' }}>Send</button>
-                      <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".txt,.md,.json,.csv,.log,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
-                      <button type="button" className="file-trigger" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Choose file</button>
-                      {fileName && <span className="file-meta">Attached: {fileName}</span>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".txt,.md,.json,.csv,.log,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
+                        <button type="button" className="file-trigger" onClick={() => fileInputRef.current && fileInputRef.current.click()}>Attach file</button>
+                        {fileName && <span className="file-meta">Attached: {fileName}</span>}
+                      </div>
+                      <button className="primary" onClick={handleSend} style={{ padding: '12px 16px' }}>Send</button>
+                      {error && <div className="small" style={{ color: '#f87171' }}>Error: {error.message}</div>}
                     </div>
                   </div>
-                  {error && <div className="small" style={{ color: '#f87171' }}>Error: {error.message}</div>}
                 </div>
 
                 <div style={{ marginTop: 18 }}>
