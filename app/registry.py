@@ -109,6 +109,21 @@ def load_registry() -> List[AgentMetadata]:
             timeout_ms=30000,
         ),
         AgentMetadata(
+            name="calendar_manager_agent",
+            description="AI-powered calendar management agent with natural language processing and conversation context. Handles meeting creation with conflict detection, updates, deletions, queries, and intelligent time suggestions. Maintains context across conversations to understand references like 'it', 'that meeting', and 'the same time'.",
+            intents=[
+                "calendar.create_meeting",
+                "calendar.list_meetings", 
+                "calendar.update_meeting",
+                "calendar.delete_meeting",
+                "calendar.check_conflicts",
+                "calendar.natural_query"
+            ],
+            type="http",
+            endpoint="https://conflict-resolver-agent.onrender.com/api/supervisor/handle",
+            healthcheck="https://conflict-resolver-agent.onrender.com/health",
+            timeout_ms=30000,
+        ),
             name="focus_enforcer_agent",
             description="Monitors user focus and productivity by analyzing window activity. Uses LLM to calculate focus scores based on productive vs distraction keywords, determines if user is FOCUSED or DISTRACTED, and generates supervisor commands for interventions (notifications or strict popups). Requires activity history data with window titles.",
             intents=[

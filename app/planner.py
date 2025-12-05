@@ -312,6 +312,106 @@ def plan_tools_with_llm(query: str, registry: List[AgentMetadata], history: Opti
             ]
         )
     
+    # Calendar agent heuristics
+    # Check for calendar-related keywords first
+    if any(keyword in lower_q for keyword in [
+        "calendar", "schedule", "meeting", "appointment", "event",
+        "book", "available", "free time", "conflict", "reschedule",
+        "cancel", "delete", "update", "change", "move"
+    ]):
+        
+        # Create/Schedule Meeting
+        if any(k in lower_q for k in [
+            "create", "schedule", "book", "add", "set up", 
+            "arrange", "organize", "plan a"
+        ]):
+            return Plan(
+                steps=[
+                    PlanStep(
+                        step_id=0,
+                        agent="calendar_manager_agent",
+                        intent="calendar.create_meeting",
+                        input_source="user_query",
+                    )
+                ]
+            )
+        
+        # List/View Meetings
+        elif any(k in lower_q for k in [
+            "list", "show", "what", "view", "display", "see",
+            "my calendar", "my meetings", "my schedule",
+            "today", "tomorrow", "this week", "next week", "this month"
+        ]):
+            return Plan(
+                steps=[
+                    PlanStep(
+                        step_id=0,
+                        agent="calendar_manager_agent",
+                        intent="calendar.list_meetings",
+                        input_source="user_query",
+                    )
+                ]
+            )
+        
+        # Update/Modify/Reschedule Meeting
+        elif any(k in lower_q for k in [
+            "update", "modify", "change", "edit", "reschedule",
+            "move", "shift", "postpone", "bring forward"
+        ]):
+            return Plan(
+                steps=[
+                    PlanStep(
+                        step_id=0,
+                        agent="calendar_manager_agent",
+                        intent="calendar.update_meeting",
+                        input_source="user_query",
+                    )
+                ]
+            )
+        
+        # Delete/Cancel Meeting
+        elif any(k in lower_q for k in [
+            "delete", "remove", "cancel", "clear", "drop"
+        ]):
+            return Plan(
+                steps=[
+                    PlanStep(
+                        step_id=0,
+                        agent="calendar_manager_agent",
+                        intent="calendar.delete_meeting",
+                        input_source="user_query",
+                    )
+                ]
+            )
+        
+        # Check for Conflicts
+        elif any(k in lower_q for k in [
+            "conflict", "conflicts", "overlapping", "double booked",
+            "clash", "available", "free", "busy"
+        ]):
+            return Plan(
+                steps=[
+                    PlanStep(
+                        step_id=0,
+                        agent="calendar_manager_agent",
+                        intent="calendar.check_conflicts",
+                        input_source="user_query",
+                    )
+                ]
+            )
+        
+        # General/Natural Language Query - Let the agent figure it out
+        else:
+            return Plan(
+                steps=[
+                    PlanStep(
+                        step_id=0,
+                        agent="calendar_manager_agent",
+                        intent="calendar.natural_query",
+                        input_source="user_query",
+                    )
+                ]
+            )
     # Budget tracking and analysis - comprehensive keyword matching
     # Note: Budget risk phrases are checked above before deadline agent
     budget_keywords = [
